@@ -96,16 +96,16 @@ namespace DevTree
             AddObjects(GameController);
             AddObjects(GameController.Game);
             AddObjects(GameController.Player, "Player");
-            AddObjects(GameController.Game.IngameState);
-            AddObjects(GameController.Game.IngameState.IngameUi);
-            AddObjects(GameController.Game.IngameState.Data);
-            AddObjects(GameController.Game.IngameState.ServerData);
-            AddObjects(GameController.Game.IngameState.ServerData.PlayerInventories[0].Inventory);
-            AddObjects(GameController.Game.IngameState.ServerData.PlayerInventories[0].Inventory.Items, "Items");
-            AddObjects(GameController.Game.IngameState.IngameUi.InventoryPanel[InventoryIndex.PlayerInventory], "Inventory panel");
-            AddObjects(GameController.IngameState.IngameUi.ItemsOnGroundLabels, "Label on grounds");
-            AddObjects(Plugins(),"Plugins");
-            _version++;
+            AddObjects(GameController.IngameState, "IngameState");
+            AddObjects(GameController.IngameState.IngameUi, "IngameState.IngameUi");
+            AddObjects(GameController.IngameState.Data, "IngameState.Data");
+            AddObjects(GameController.IngameState.Data.ServerData, "IngameState.Data.ServerData");
+            AddObjects(GameController.IngameState.Data.ServerData.PlayerInventories[0].Inventory, "IngameState.Data.ServerData.PlayerInventories[0].Inventory");
+            AddObjects(GameController.IngameState.Data.ServerData.PlayerInventories[0].Inventory.Items, "-> Items");
+            AddObjects(GameController.IngameState.IngameUi.InventoryPanel[InventoryIndex.PlayerInventory], "IngameState.IngameUi.InventoryPanel[InventoryIndex.PlayerInventory]");
+            AddObjects(GameController.IngameState.IngameUi.ItemsOnGroundLabels, "IngameState.IngameUi.ItemsOnGroundLabels");
+            var pluginWrappers = Plugins();
+            AddObjects(pluginWrappers, "PluginWrappers");
         }
 
         public void AddObjects(object o, string name = null)
