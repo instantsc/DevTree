@@ -591,7 +591,7 @@ namespace DevTree
                 }
 
                 ImGui.Indent();
-                ImGui.BeginTabBar($"Tabs##{obj.GetHashCode()}");
+                ImGui.BeginTabBar($"Tabs");
 
                 if (ImGui.BeginTabItem("Properties"))
                 {
@@ -628,7 +628,7 @@ namespace DevTree
                         switch (obj)
                         {
                             case Entity e:
-                                if (ImGui.TreeNode($"Components: {e.CacheComp.Count}##e{e.Address}"))
+                                if (e.CacheComp != null && ImGui.TreeNode($"Components: {e.CacheComp.Count}###__Components"))
                                 {
                                     foreach (var component in e.CacheComp)
                                     {
@@ -659,7 +659,7 @@ namespace DevTree
 
                                         var g = generic.Invoke(e, null);
 
-                                        if (ImGui.TreeNode($"{component.Key} ##{e.Address}"))
+                                        if (ImGui.TreeNode(component.Key))
                                         {
                                             Debug(g);
                                             ImGui.TreePop();
@@ -671,7 +671,7 @@ namespace DevTree
 
                                 if (e.HasComponent<Base>())
                                 {
-                                    if (ImGui.TreeNode($"Item info##{e.Address}"))
+                                    if (ImGui.TreeNode($"Item info###__Base"))
                                     {
                                         var BIT = GameController.Files.BaseItemTypes.Translate(e.Path);
                                         Debug(BIT);
@@ -837,7 +837,7 @@ namespace DevTree
                                                     }
                                                 }
 
-                                                if (ImGui.TreeNode($"[{index}] {colName} ##{col.GetHashCode()}"))
+                                                if (ImGui.TreeNode($"[{index}] {colName} ###{index},{col.GetType().Name}"))
                                                 {
                                                     if (element != null && ImGui.IsItemHovered())
                                                     {
@@ -886,12 +886,10 @@ namespace DevTree
                                 else
                                 {
                                     string name;
-                                    var isMemoryObj = propertyValue is RemoteMemoryObject;
-
-                                    if (isMemoryObj)
-                                        name = $"{property.Name} [{((RemoteMemoryObject) propertyValue).Address:X}]##{type.FullName}";
+                                    if (propertyValue is RemoteMemoryObject rmo)
+                                        name = $"{property.Name} [{rmo.Address:X}]###{property.Name} {type.FullName}";
                                     else
-                                        name = $"{property.Name} ##{type.FullName}";
+                                        name = $"{property.Name} ###{property.Name} {type.FullName}";
 
                                     if (ImGui.TreeNode(name))
                                     {
@@ -900,19 +898,12 @@ namespace DevTree
                                         ImGui.TreePop();
                                     }
 
-                                    if (isMemoryObj)
+                                    if (propertyValue is Element e)
                                     {
-                                        switch (propertyValue)
+                                        if (ImGui.IsItemHovered())
                                         {
-                                            case Element e:
-
-                                                if (ImGui.IsItemHovered())
-                                                {
-                                                    if (e.Width > 0 && e.Height > 0)
-                                                        Graphics.DrawFrame(e.GetClientRectCache, ColorSwaper.Value, 2);
-                                                }
-
-                                                break;
+                                            if (e.Width > 0 && e.Height > 0)
+                                                Graphics.DrawFrame(e.GetClientRectCache, ColorSwaper.Value, 2);
                                         }
                                     }
                                 }

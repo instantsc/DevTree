@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using GameOffsets.Native;
 using SharpDX;
 
 namespace DevTree
@@ -16,12 +17,14 @@ namespace DevTree
             typeof(TimeSpan),
             typeof(Guid),
             typeof(Vector2),
-            typeof(Vector3)
+            typeof(Vector2i),
+            typeof(Vector3),
+            typeof(ColorBGRA)
         };
 
         public static bool IsEnumerable(Type type)
         {
-            return typeof(IEnumerable).IsAssignableFrom(type) || typeof(IEnumerable<>).IsAssignableFrom(type);
+            return type != typeof(string) && typeof(IEnumerable).IsAssignableFrom(type);
         }
 
         public static bool IsCollection(Type type)
