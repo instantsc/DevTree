@@ -760,7 +760,7 @@ namespace DevTree
                                     }
 
                                     ImGui.SameLine();
-                                    var strId = $"{property.Name} ##{type.FullName}";
+                                    var strId = $"{property.Name} ##{property.DeclaringType.FullName}";
 
                                     if (ImGui.TreeNode(strId))
                                     {
@@ -887,7 +887,7 @@ namespace DevTree
                                 {
                                     string name;
                                     if (propertyValue is RemoteMemoryObject rmo)
-                                        name = $"{property.Name} [{rmo.Address:X}]###{property.Name} {type.FullName}";
+                                        name = $"{property.Name} [{rmo.Address:X}]###{property.Name} {property.DeclaringType.FullName}";
                                     else
                                         name = $"{property.Name} ###{property.Name} {type.FullName}";
 
