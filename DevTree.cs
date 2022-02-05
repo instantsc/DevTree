@@ -15,7 +15,6 @@ using ExileCore.Shared.Enums;
 using ExileCore.Shared.Helpers;
 using ImGuiNET;
 using SharpDX;
-using ImGuiVector2 = System.Numerics.Vector2;
 using ImGuiVector4 = System.Numerics.Vector4;
 
 namespace DevTree
@@ -25,7 +24,6 @@ namespace DevTree
         private const BindingFlags Flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static |
                                            BindingFlags.FlattenHierarchy;
 
-        private readonly Random _rnd = new Random(123);
         private int _version;
         private TimeCache<Color> ColorSwaper;
         private List<Entity> DebugEntities = new List<Entity>(128);
@@ -605,9 +603,7 @@ namespace DevTree
 
                         ImGui.PopStyleColor(4);
 
-                        var asComponent = isMemoryObject as Component;
-
-                        if (asComponent != null)
+                        if (isMemoryObject is Component asComponent)
                         {
                             ImGui.Text("OwnerAddress: ");
                             ImGui.SameLine();
@@ -783,26 +779,14 @@ namespace DevTree
                                                 }
 
                                                 var colType = col.GetType();
-                                                string colName;
-
-                                                switch (col)
+                                                var colName = col switch
                                                 {
-                                                    case Entity e:
-                                                        colName = e.Path;
-                                                        break;
-                                                    case Inventory e:
-                                                        colName = $"{e.InvType} Count: ({e.ItemCount}) Box:{e.TotalBoxesInInventoryRow}";
-                                                        break;
-                                                    case Element e when e.Text?.Length > 0:
-                                                        colName = $"{e.Text}##{index}";
-                                                        break;
-                                                    case Element e:
-                                                        colName = $"{colType.Name}";
-                                                        break;
-                                                    default:
-                                                        colName = $"{colType.Name}";
-                                                        break;
-                                                }
+                                                    Entity e => e.Path,
+                                                    Inventory e => $"{e.InvType} Count: ({e.ItemCount}) Box:{e.TotalBoxesInInventoryRow}",
+                                                    Element { Text.Length: > 0 } e => $"{e.Text}##{index}",
+                                                    Element => $"{colType.Name}",
+                                                    _ => $"{colType.Name}"
+                                                };
 
                                                 if (IsSimpleType(colType))
                                                     ImGui.TextUnformatted(col.ToString());
