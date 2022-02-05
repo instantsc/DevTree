@@ -889,6 +889,9 @@ namespace DevTree
                         }
                         catch (Exception e)
                         {
+                            ImGui.Text($"{property.Name}: ");
+                            ImGui.SameLine();
+                            ImGui.TextColored(Color.Red.ToImguiVec4(), "<exception thrown>");
                             LogError($"{property.Name} -> {e}");
                         }
                     }
