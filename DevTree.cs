@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
-using System.Windows.Forms;
 using ExileCore;
 using ExileCore.PoEMemory;
 using ExileCore.PoEMemory.Components;
@@ -33,7 +32,7 @@ namespace DevTree
         private double Error = 0;
         private readonly Dictionary<string, MethodInfo> genericMethodCache = new Dictionary<string, MethodInfo>();
         private MethodInfo GetComponentMethod;
-        private readonly HashSet<string> IgnoredPropertioes = new HashSet<string> {"M", "TheGame", "Address"};
+        private readonly HashSet<string> IgnoredProperties = new HashSet<string> { "M", "TheGame", "Address" };
         private string inputFilter = "";
         private string guiObjAddr = "";
         private readonly Dictionary<string, object> objects = new Dictionary<string, object>();
@@ -44,7 +43,7 @@ namespace DevTree
         private readonly Dictionary<string, int> Skips = new Dictionary<string, int>();
         private bool windowState;
         public Func<List<PluginWrapper>> Plugins;
-        
+
         public override void OnLoad()
         {
             var values = Enum.GetNames(typeof(MonsterRarity));
@@ -67,18 +66,13 @@ namespace DevTree
                 LogError($"{e}");
             }
 
-            ColorSwaper = new TimeCache<Color>(() =>
-            {
-                return Color.Yellow;
-                return new Color(_rnd.Next(255), _rnd.Next(255), _rnd.Next(255), 255);
-                ;
-            }, 25);
+            ColorSwaper = new TimeCache<Color>(() => { return Color.Yellow; }, 25);
 
             Input.RegisterKey(Settings.ToggleWindowKey);
             Input.RegisterKey(Settings.DebugHoverItem);
-            Settings.DebugHoverItem.OnValueChanged += () => {   Input.RegisterKey(Settings.DebugHoverItem);};
-            Settings.ToggleWindowKey.OnValueChanged += () => {   Input.RegisterKey(Settings.ToggleWindowKey);};
-            Name = "Dev Tree";
+            Settings.DebugHoverItem.OnValueChanged += () => { Input.RegisterKey(Settings.DebugHoverItem); };
+            Settings.ToggleWindowKey.OnValueChanged += () => { Input.RegisterKey(Settings.ToggleWindowKey); };
+            Name = "DevTree";
             return true;
         }
 
@@ -122,7 +116,7 @@ namespace DevTree
             if (o is RemoteMemoryObject || o is FileInMemory)
             {
                 var propertyInfo = type.GetProperty("Address");
-                if (propertyInfo != null) name += $" ({(long) propertyInfo.GetValue(o, null):X})##InitObject";
+                if (propertyInfo != null) name += $" ({(long)propertyInfo.GetValue(o, null):X})##InitObject";
             }
 
             objects[name] = o;
@@ -158,9 +152,10 @@ namespace DevTree
                 var hoverItemIcon = GameController.IngameState.UIHover.AsObject<HoverItemIcon>();
                 if (ingameStateUiHover.Address != 0)
                 {
-                    AddObjects(new{Hover = ingameStateUiHover,HoverLikeItem = hoverItemIcon},"Stored UIHover");
+                    AddObjects(new { Hover = ingameStateUiHover, HoverLikeItem = hoverItemIcon }, "Stored UIHover");
                 }
             }
+
             windowState = Settings.Enable;
             ImGui.Begin($"{Name}", ref windowState);
 
@@ -198,7 +193,7 @@ namespace DevTree
                     if (ImGui.Selectable(rarity, isSelected))
                     {
                         selectedRarityString = rarity;
-                        selectedRarity = (MonsterRarity) index;
+                        selectedRarity = (MonsterRarity)index;
                     }
 
                     if (isSelected) ImGui.SetItemDefaultFocus();
@@ -222,15 +217,15 @@ namespace DevTree
                     {
                         DebugEntities = entites.Where(x => x.Rarity == selectedRarity &&
                                                            x.GridPos.Distance(playerGridPos) < Settings.NearestEntsRange)
-                            .OrderBy(x => x.GridPos.Distance(playerGridPos)).ToList();
+                           .OrderBy(x => x.GridPos.Distance(playerGridPos)).ToList();
                     }
                     else
                     {
                         DebugEntities = entites
-                            .Where(x => (x.Path.Contains(inputFilter) || x.Address.ToString("x").ToLower().Contains(inputFilter.ToLower())) &&
-                                        x.GetComponent<ObjectMagicProperties>()?.Rarity == selectedRarity &&
-                                        x.GridPos.Distance(playerGridPos) < Settings.NearestEntsRange)
-                            .OrderBy(x => x.GridPos.Distance(playerGridPos)).ToList();
+                           .Where(x => (x.Path.Contains(inputFilter) || x.Address.ToString("x").ToLower().Contains(inputFilter.ToLower())) &&
+                                       x.GetComponent<ObjectMagicProperties>()?.Rarity == selectedRarity &&
+                                       x.GridPos.Distance(playerGridPos) < Settings.NearestEntsRange)
+                           .OrderBy(x => x.GridPos.Distance(playerGridPos)).ToList();
                     }
                 }
                 else
@@ -238,14 +233,14 @@ namespace DevTree
                     if (inputFilter.Length == 0)
                     {
                         DebugEntities = entites.Where(x => x.GridPos.Distance(playerGridPos) < Settings.NearestEntsRange)
-                            .OrderBy(x => x.GridPos.Distance(playerGridPos)).ToList();
+                           .OrderBy(x => x.GridPos.Distance(playerGridPos)).ToList();
                     }
                     else
                     {
                         DebugEntities = entites
-                            .Where(x => (x.Path.Contains(inputFilter) || x.Address.ToString("x").ToLower().Contains(inputFilter.ToLower())) &&
-                                        x.GridPos.Distance(playerGridPos) < Settings.NearestEntsRange)
-                            .OrderBy(x => x.GridPos.Distance(playerGridPos)).ToList();
+                           .Where(x => (x.Path.Contains(inputFilter) || x.Address.ToString("x").ToLower().Contains(inputFilter.ToLower())) &&
+                                       x.GridPos.Distance(playerGridPos) < Settings.NearestEntsRange)
+                           .OrderBy(x => x.GridPos.Distance(playerGridPos)).ToList();
                     }
                 }
             }
@@ -277,19 +272,20 @@ namespace DevTree
                             }
 
                             indexPath.Reverse();
- 
-                            LogMessage("IS gui element!"  + $"Path from root: [{string.Join(", ", indexPath)}]", 3);
+
+                            LogMessage("IS gui element!" + $"Path from root: [{string.Join(", ", indexPath)}]", 3);
                             found = true;
                             break;
                         }
-                     
+
                         foreach (var elementChild in element.Children)
                         {
                             queue.Enqueue(elementChild);
                         }
                     }
-                    if(!found)
-                    LogMessage("NOT a gui element!", 3);
+
+                    if (!found)
+                        LogMessage("NOT a gui element!", 3);
                 }
             }
 
@@ -418,7 +414,7 @@ namespace DevTree
                 {
                     var debugEntity = DebugEntities[index];
                     var worldtoscreen = camera.WorldToScreen(debugEntity.Pos);
-              
+
                     Graphics.DrawText($"{index}", worldtoscreen);
 
                     if (ImGui.TreeNode($"[{index}] {debugEntity}"))
@@ -432,10 +428,11 @@ namespace DevTree
                     {
                         borderColor = Color.DarkSlateGray;
                     }
+
                     Graphics.DrawBox(worldtoscreen.TranslateToNum(-9, -9), worldtoscreen.TranslateToNum(18, 18), borderColor);
                 }
             }
-            
+
             ImGui.End();
         }
 
@@ -514,7 +511,6 @@ namespace DevTree
                             index++;
                         }
 
-                        
 
                         return;
                     }
@@ -604,8 +600,8 @@ namespace DevTree
                         ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new ImGuiVector4(0.25f, 0.25f, 0.25f, 1));
                         ImGui.PushStyleColor(ImGuiCol.ButtonActive, new ImGuiVector4(1, 1, 1, 1));
 
-                        if (ImGui.SmallButton($"{((RemoteMemoryObject) obj).Address:X}"))
-                            ImGui.SetClipboardText($"{((RemoteMemoryObject) obj).Address:X}");
+                        if (ImGui.SmallButton($"{((RemoteMemoryObject)obj).Address:X}"))
+                            ImGui.SetClipboardText($"{((RemoteMemoryObject)obj).Address:X}");
 
                         ImGui.PopStyleColor(4);
 
@@ -684,231 +680,228 @@ namespace DevTree
                     }
 
                     var properties = type.GetProperties(Flags).Where(x => x.GetIndexParameters().Length == 0)
-                        .OrderBy(x => x.PropertyType.GetInterface("IEnumerable") != null).ThenBy(x => x.Name);
+                       .OrderBy(x => x.PropertyType.GetInterface("IEnumerable") != null).ThenBy(x => x.Name);
 
                     foreach (var property in properties)
                     {
                         try
                         {
+                            if (isMemoryObject != null && IgnoredProperties.Contains(property.Name)) continue;
 
-                       
-                        if (isMemoryObject != null && IgnoredPropertioes.Contains(property.Name)) continue;
+                            var propertyValue = property.GetValue(obj);
 
-                        var propertyValue = property.GetValue(obj);
-
-                        if (propertyValue == null)
-                        {
-                            ImGui.Text($"{property.Name}: ");
-                            ImGui.SameLine();
-                            ImGui.TextColored(Color.Red.ToImguiVec4(), "Null");
-                            continue;
-                        }
-
-                        //Draw primitives
-                        if (IsSimpleType(property.PropertyType))
-                        {
-                         
-                            ImGui.Text($"{property.Name}: ");
-                            ImGui.SameLine();
-                            ImGui.PushStyleColor(ImGuiCol.Text, new ImGuiVector4(1, 0.647f, 0, 1));
-                            ImGui.PushStyleColor(ImGuiCol.Button, new ImGuiVector4(0, 0, 0, 0));
-                            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new ImGuiVector4(0.25f, 0.25f, 0.25f, 1));
-                            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new ImGuiVector4(1, 1, 1, 1));
-
-                            var propertyVal = property.Name == "Address" ? ((long) propertyValue).ToString("x") : propertyValue.ToString();
-                            if (ImGui.SmallButton(propertyVal)) ImGui.SetClipboardText(propertyVal);
-
-                            ImGui.PopStyleColor(4);
-                        }
-                        else
-                        {
-                            //Draw enumrable 
-                            isEnumerable = IsEnumerable(property.PropertyType);
-
-                            if (isEnumerable)
+                            if (propertyValue == null)
                             {
-                                var collection = propertyValue as ICollection;
-
-                                if (collection == null)
-                                    continue;
-
-                                if (collection.Count > 0)
-                                {
-                                    ImGui.TextColored(Color.OrangeRed.ToImguiVec4(), $"[{collection.Count}]");
-
-                                    var isElementEnumerable = property.PropertyType.GenericTypeArguments.Length == 1 &&
-                                                              (property.PropertyType.GenericTypeArguments[0] == typeof(Element) ||
-                                                               property.PropertyType.GenericTypeArguments[0].IsSubclassOf(typeof(Element)));
-
-                                    if (isElementEnumerable)
-                                    {
-                                        if (ImGui.IsItemHovered())
-                                        {
-                                            var index = 0;
-
-                                            foreach (var el in collection)
-                                            {
-                                                if (el is Element e)
-                                                {
-                                                    var clientRectCache = e.GetClientRectCache;
-                                                    Graphics.DrawFrame(clientRectCache, ColorSwaper.Value, 1);
-                                                    Graphics.DrawText(index.ToString(), clientRectCache.Center);
-                                                    index++;
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    ImGui.SameLine();
-                                    var strId = $"{property.Name} ##{property.DeclaringType.FullName}";
-
-                                    if (ImGui.TreeNode(strId))
-                                    {
-                                        var skipId = $"{strId} {obj.GetHashCode()}";
-
-                                        if (Skips.TryGetValue(skipId, out var skip))
-                                        {
-                                            ImGui.InputInt("Skip", ref skip, 1, 100);
-                                            Skips[skipId] = skip;
-                                        }
-                                        else
-                                            Skips[skipId] = 0;
-
-                                        var index = -1;
-
-                                        foreach (var col in collection)
-                                        {
-                                            index++;
-
-                                            if (index < skip)
-                                                continue;
-
-                                            if (col == null)
-                                            {
-                                                ImGui.TextColored(Color.Red.ToImguiVec4(), "Null");
-                                                continue;
-                                            }
-
-                                            var colType = col.GetType();
-                                            string colName;
-
-                                            switch (col)
-                                            {
-                                                case Entity e:
-                                                    colName = e.Path;
-                                                    break;
-                                                case Inventory e:
-                                                    colName = $"{e.InvType} Count: ({e.ItemCount}) Box:{e.TotalBoxesInInventoryRow}";
-                                                    break;
-                                                case Element e when e.Text?.Length > 0:
-                                                    colName = $"{e.Text}##{index}";
-                                                    break;
-                                                case Element e:
-                                                    colName = $"{colType.Name}";
-                                                    break;
-                                                default:
-                                                    colName = $"{colType.Name}";
-                                                    break;
-                                            }
-
-                                            if (IsSimpleType(colType))
-                                                ImGui.TextUnformatted(col.ToString());
-                                            else
-                                            {
-                                                Element element = null;
-
-                                                if (isElementEnumerable)
-                                                {
-                                                    element = col as Element;
-
-                                                    //  colName += $" ({element.ChildCount})";
-                                                    ImGui.Text($" ({element.ChildCount})");
-                                                    ImGui.SameLine();
-                                                }
-                                                else
-                                                {
-                                                    var methodInfo = colType.GetMethod("ToString", Type.EmptyTypes);
-
-                                                    if (methodInfo != null &&
-                                                        (methodInfo.Attributes & MethodAttributes.VtableLayoutMask) == 0)
-                                                    {
-                                                        var toString = methodInfo?.Invoke(col, null);
-                                                        if (toString != null) colName = $"{toString}";
-                                                    }
-                                                }
-
-                                                if (ImGui.TreeNode($"[{index}] {colName} ###{index},{col.GetType().Name}"))
-                                                {
-                                                    if (element != null && ImGui.IsItemHovered())
-                                                    {
-                                                        if (element.Width > 0 && element.Height > 0)
-                                                            Graphics.DrawFrame(element.GetClientRectCache, ColorSwaper.Value, 2);
-                                                    }
-
-                                                    Debug(col, colType);
-
-                                                    ImGui.TreePop();
-                                                }
-
-                                                if (isElementEnumerable && element != null)
-                                                {
-                                                    if (ImGui.IsItemHovered())
-                                                    {
-                                                        if (element.Width > 0 && element.Height > 0)
-                                                            Graphics.DrawFrame(element.GetClientRectCache, ColorSwaper.Value, 2);
-                                                    }
-                                                }
-                                            }
-
-                                            if (index - skip > Settings.LimitForCollection)
-                                            {
-                                                ImGui.TreePop();
-                                                break;
-                                            }
-                                        }
-
-                                        ImGui.TreePop();
-                                    }
-                                }
-                                else
-                                {
-                                    ImGui.Indent();
-                                    ImGui.TextColored(Color.Red.ToImguiVec4(), $"{property.Name} [Empty]");
-                                    ImGui.Unindent();
-                                }
+                                ImGui.Text($"{property.Name}: ");
+                                ImGui.SameLine();
+                                ImGui.TextColored(Color.Red.ToImguiVec4(), "Null");
+                                continue;
                             }
 
-                            //Debug others objects
+                            //Draw primitives
+                            if (IsSimpleType(property.PropertyType))
+                            {
+                                ImGui.Text($"{property.Name}: ");
+                                ImGui.SameLine();
+                                ImGui.PushStyleColor(ImGuiCol.Text, new ImGuiVector4(1, 0.647f, 0, 1));
+                                ImGui.PushStyleColor(ImGuiCol.Button, new ImGuiVector4(0, 0, 0, 0));
+                                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new ImGuiVector4(0.25f, 0.25f, 0.25f, 1));
+                                ImGui.PushStyleColor(ImGuiCol.ButtonActive, new ImGuiVector4(1, 1, 1, 1));
+
+                                var propertyVal = property.Name == "Address" ? ((long)propertyValue).ToString("x") : propertyValue.ToString();
+                                if (ImGui.SmallButton(propertyVal)) ImGui.SetClipboardText(propertyVal);
+
+                                ImGui.PopStyleColor(4);
+                            }
                             else
                             {
-                                if (property.Name.Equals("Value"))
-                                    Debug(propertyValue);
+                                //Draw enumrable 
+                                isEnumerable = IsEnumerable(property.PropertyType);
+
+                                if (isEnumerable)
+                                {
+                                    var collection = propertyValue as ICollection;
+
+                                    if (collection == null)
+                                        continue;
+
+                                    if (collection.Count > 0)
+                                    {
+                                        ImGui.TextColored(Color.OrangeRed.ToImguiVec4(), $"[{collection.Count}]");
+
+                                        var isElementEnumerable = property.PropertyType.GenericTypeArguments.Length == 1 &&
+                                                                  (property.PropertyType.GenericTypeArguments[0] == typeof(Element) ||
+                                                                   property.PropertyType.GenericTypeArguments[0].IsSubclassOf(typeof(Element)));
+
+                                        if (isElementEnumerable)
+                                        {
+                                            if (ImGui.IsItemHovered())
+                                            {
+                                                var index = 0;
+
+                                                foreach (var el in collection)
+                                                {
+                                                    if (el is Element e)
+                                                    {
+                                                        var clientRectCache = e.GetClientRectCache;
+                                                        Graphics.DrawFrame(clientRectCache, ColorSwaper.Value, 1);
+                                                        Graphics.DrawText(index.ToString(), clientRectCache.Center);
+                                                        index++;
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        ImGui.SameLine();
+                                        var strId = $"{property.Name} ##{property.DeclaringType.FullName}";
+
+                                        if (ImGui.TreeNode(strId))
+                                        {
+                                            var skipId = $"{strId} {obj.GetHashCode()}";
+
+                                            if (Skips.TryGetValue(skipId, out var skip))
+                                            {
+                                                ImGui.InputInt("Skip", ref skip, 1, 100);
+                                                Skips[skipId] = skip;
+                                            }
+                                            else
+                                                Skips[skipId] = 0;
+
+                                            var index = -1;
+
+                                            foreach (var col in collection)
+                                            {
+                                                index++;
+
+                                                if (index < skip)
+                                                    continue;
+
+                                                if (col == null)
+                                                {
+                                                    ImGui.TextColored(Color.Red.ToImguiVec4(), "Null");
+                                                    continue;
+                                                }
+
+                                                var colType = col.GetType();
+                                                string colName;
+
+                                                switch (col)
+                                                {
+                                                    case Entity e:
+                                                        colName = e.Path;
+                                                        break;
+                                                    case Inventory e:
+                                                        colName = $"{e.InvType} Count: ({e.ItemCount}) Box:{e.TotalBoxesInInventoryRow}";
+                                                        break;
+                                                    case Element e when e.Text?.Length > 0:
+                                                        colName = $"{e.Text}##{index}";
+                                                        break;
+                                                    case Element e:
+                                                        colName = $"{colType.Name}";
+                                                        break;
+                                                    default:
+                                                        colName = $"{colType.Name}";
+                                                        break;
+                                                }
+
+                                                if (IsSimpleType(colType))
+                                                    ImGui.TextUnformatted(col.ToString());
+                                                else
+                                                {
+                                                    Element element = null;
+
+                                                    if (isElementEnumerable)
+                                                    {
+                                                        element = col as Element;
+
+                                                        //  colName += $" ({element.ChildCount})";
+                                                        ImGui.Text($" ({element.ChildCount})");
+                                                        ImGui.SameLine();
+                                                    }
+                                                    else
+                                                    {
+                                                        var methodInfo = colType.GetMethod("ToString", Type.EmptyTypes);
+
+                                                        if (methodInfo != null &&
+                                                            (methodInfo.Attributes & MethodAttributes.VtableLayoutMask) == 0)
+                                                        {
+                                                            var toString = methodInfo?.Invoke(col, null);
+                                                            if (toString != null) colName = $"{toString}";
+                                                        }
+                                                    }
+
+                                                    if (ImGui.TreeNode($"[{index}] {colName} ###{index},{col.GetType().Name}"))
+                                                    {
+                                                        if (element != null && ImGui.IsItemHovered())
+                                                        {
+                                                            if (element.Width > 0 && element.Height > 0)
+                                                                Graphics.DrawFrame(element.GetClientRectCache, ColorSwaper.Value, 2);
+                                                        }
+
+                                                        Debug(col, colType);
+
+                                                        ImGui.TreePop();
+                                                    }
+
+                                                    if (isElementEnumerable && element != null)
+                                                    {
+                                                        if (ImGui.IsItemHovered())
+                                                        {
+                                                            if (element.Width > 0 && element.Height > 0)
+                                                                Graphics.DrawFrame(element.GetClientRectCache, ColorSwaper.Value, 2);
+                                                        }
+                                                    }
+                                                }
+
+                                                if (index - skip > Settings.LimitForCollection)
+                                                {
+                                                    ImGui.TreePop();
+                                                    break;
+                                                }
+                                            }
+
+                                            ImGui.TreePop();
+                                        }
+                                    }
+                                    else
+                                    {
+                                        ImGui.Indent();
+                                        ImGui.TextColored(Color.Red.ToImguiVec4(), $"{property.Name} [Empty]");
+                                        ImGui.Unindent();
+                                    }
+                                }
+
+                                //Debug others objects
                                 else
                                 {
-                                    string name;
-                                    if (propertyValue is RemoteMemoryObject rmo)
-                                        name = $"{property.Name} [{rmo.Address:X}]###{property.Name} {property.DeclaringType.FullName}";
-                                    else
-                                        name = $"{property.Name} ###{property.Name} {type.FullName}";
-
-                                    if (ImGui.TreeNode(name))
-                                    {
+                                    if (property.Name.Equals("Value"))
                                         Debug(propertyValue);
-
-                                        ImGui.TreePop();
-                                    }
-
-                                    if (propertyValue is Element e)
+                                    else
                                     {
-                                        if (ImGui.IsItemHovered())
+                                        string name;
+                                        if (propertyValue is RemoteMemoryObject rmo)
+                                            name = $"{property.Name} [{rmo.Address:X}]###{property.Name} {property.DeclaringType.FullName}";
+                                        else
+                                            name = $"{property.Name} ###{property.Name} {type.FullName}";
+
+                                        if (ImGui.TreeNode(name))
                                         {
-                                            if (e.Width > 0 && e.Height > 0)
-                                                Graphics.DrawFrame(e.GetClientRectCache, ColorSwaper.Value, 2);
+                                            Debug(propertyValue);
+
+                                            ImGui.TreePop();
+                                        }
+
+                                        if (propertyValue is Element e)
+                                        {
+                                            if (ImGui.IsItemHovered())
+                                            {
+                                                if (e.Width > 0 && e.Height > 0)
+                                                    Graphics.DrawFrame(e.GetClientRectCache, ColorSwaper.Value, 2);
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
                         }
                         catch (Exception e)
                         {
@@ -962,7 +955,7 @@ namespace DevTree
 
                 if (isMemoryObject != null && ImGui.BeginTabItem("Dynamic"))
                 {
-                    var remoteMemoryObject = (RemoteMemoryObject) obj;
+                    var remoteMemoryObject = (RemoteMemoryObject)obj;
                     ImGui.TextColored(Color.GreenYellow.ToImguiVec4(), "Address: ");
                     if (ImGui.IsItemClicked()) ImGui.SetClipboardText(remoteMemoryObject.Address.ToString());
 
