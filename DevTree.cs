@@ -867,11 +867,9 @@ namespace DevTree
                                             name = $"{property.Name} [{rmo.Address:X}]###{property.Name} {property.DeclaringType.FullName}";
                                         else
                                             name = $"{property.Name} ###{property.Name} {type.FullName}";
-
-                                        if (ImGui.TreeNode(name))
+                                        if (ColoredTreeNode(name, propertyValue is Element { IsVisible: true } ? Color.Green : Color.White))
                                         {
                                             Debug(propertyValue);
-
                                             ImGui.TreePop();
                                         }
 

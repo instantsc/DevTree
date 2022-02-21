@@ -1,7 +1,9 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using ExileCore.Shared.Helpers;
 using GameOffsets.Native;
+using ImGuiNET;
 using SharpDX;
 
 namespace DevTree
@@ -37,6 +39,14 @@ namespace DevTree
             return type.IsPrimitive || PrimitiveTypes.Contains(type) || Convert.GetTypeCode(type) != TypeCode.Object ||
                    type.BaseType == typeof(Enum) || type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>) &&
                    IsSimpleType(type.GetGenericArguments()[0]);
+        }
+
+        public static bool ColoredTreeNode(string text, Color color)
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, color.ToImgui());
+            var result = ImGui.TreeNode(text);
+            ImGui.PopStyleColor();
+            return result;
         }
     }
 }
