@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
+using System.Windows.Forms;
 using ExileCore;
 using ExileCore.PoEMemory;
 using ExileCore.PoEMemory.Components;
@@ -40,6 +42,7 @@ namespace DevTree
         private string selectedRarityString = "All";
         private readonly Dictionary<string, int> Skips = new Dictionary<string, int>();
         private bool windowState;
+        private object _lastHoveredMenuItem = null;
         public Func<List<PluginWrapper>> Plugins;
 
         public override void OnLoad()
@@ -151,6 +154,33 @@ namespace DevTree
                 if (ingameStateUiHover.Address != 0)
                 {
                     AddObjects(new { Hover = ingameStateUiHover, HoverLikeItem = hoverItemIcon }, "Stored UIHover");
+                }
+            }
+
+            if (Settings.SaveDevTreeNode.PressedOnce())
+            {
+                if (_lastHoveredMenuItem != null)
+                {
+                    AddObjects(_lastHoveredMenuItem, "Stored tree node");
+                }
+            }
+
+            var isKeyDown = Input.IsKeyDown(Keys.V);
+            var keyDown = Input.IsKeyDown(Keys.ControlKey);
+            if (isKeyDown && keyDown)
+            {
+                var clipboardText = GetClipboardText();
+                if (!string.IsNullOrWhiteSpace(clipboardText))
+                {
+                    if (clipboardText.StartsWith("0x"))
+                        clipboardText = clipboardText.Substring(2);
+                    if (long.TryParse(clipboardText, NumberStyles.HexNumber, CultureInfo.InvariantCulture,
+                            out var parsedAddress) && parsedAddress != 0)
+                    {
+                        var ingameStateUiHover = GameController.Game.GetObject<Element>(parsedAddress);
+                        var hoverItemIcon = ingameStateUiHover.AsObject<HoverItemIcon>();
+                        AddObjects(new { Hover = ingameStateUiHover, HoverLikeItem = hoverItemIcon }, "Stored UIHover");
+                    }
                 }
             }
 
@@ -289,7 +319,7 @@ namespace DevTree
 
             foreach (var o in objects)
             {
-                if (ImGui.TreeNode($"{o.Key}##{_version}"))
+                if (TreeNode($"{o.Key}##{_version}", o.Value))
                 {
                     ImGui.Indent();
 
@@ -358,7 +388,7 @@ namespace DevTree
                 {
                     try
                     {
-                        if (ImGui.TreeNode($"{el.Address:X} - {el.X}:{el.Y},{el.Width}:{el.Height}##{el.GetHashCode()}"))
+                        if (TreeNode($"{el.Address:X} - {el.X}:{el.Y},{el.Width}:{el.Height}##{el.GetHashCode()}", el))
                         {
                             var keyForOffset = $"{el.Address}{el.GetHashCode()}";
 
@@ -415,7 +445,7 @@ namespace DevTree
 
                     Graphics.DrawText($"{index}", worldtoscreen);
 
-                    if (ImGui.TreeNode($"[{index}] {debugEntity}"))
+                    if (TreeNode($"[{index}] {debugEntity}", debugEntity))
                     {
                         Debug(debugEntity);
                         ImGui.TreePop();
@@ -432,6 +462,25 @@ namespace DevTree
             }
 
             ImGui.End();
+        }
+
+        private static string GetClipboardText()
+        {
+            var text = "";
+            var staThread = new Thread(() =>
+            {
+                try
+                {
+                    text = Clipboard.GetText();
+                }
+                catch
+                {
+                }
+            });
+            staThread.SetApartmentState(ApartmentState.STA);
+            staThread.Start();
+            staThread.Join();
+            return text;
         }
 
         public void Debug(object obj, Type type = null)
@@ -499,7 +548,7 @@ namespace DevTree
                                 if (toString != null) colName = $"{toString}";
                             }
 
-                            if (ImGui.TreeNode($"[{index}] {colName}"))
+                            if (TreeNode($"[{index}] {colName}", col))
                             {
                                 Debug(col, colType);
 
@@ -543,7 +592,7 @@ namespace DevTree
                                 if (toString != null) colName = $"{toString}";
                             }
 
-                            if (ImGui.TreeNode($"[{index}] {colName}"))
+                            if (TreeNode($"[{index}] {colName}", col))
                             {
                                 Debug(col, colType);
 
@@ -568,7 +617,7 @@ namespace DevTree
                     {
                         var count = valueType.GetProperty("Count").GetValue(value, null);
 
-                        if (ImGui.TreeNode($"{key} {count}"))
+                        if (TreeNode($"{key} {count}", value))
                         {
                             Debug(value);
                             ImGui.TreePop();
@@ -651,7 +700,7 @@ namespace DevTree
 
                                         var g = generic.Invoke(e, null);
 
-                                        if (ImGui.TreeNode(component.Key))
+                                        if (TreeNode(component.Key, g))
                                         {
                                             Debug(g);
                                             ImGui.TreePop();
@@ -814,26 +863,20 @@ namespace DevTree
                                                         }
                                                     }
 
-                                                    if (ImGui.TreeNode($"[{index}] {colName} ###{index},{col.GetType().Name}"))
-                                                    {
-                                                        if (element != null && ImGui.IsItemHovered())
+                                                    if (ColoredTreeNode($"[{index}] {colName} ###{index},{col.GetType().Name}", col switch
                                                         {
-                                                            if (element.Width > 0 && element.Height > 0)
-                                                                Graphics.DrawFrame(element.GetClientRectCache, ColorSwaper.Value, 2);
-                                                        }
-
+                                                            Element { IsValid: false } => Color.DarkRed,
+                                                            Element { IsVisible: true } => Color.Green,
+                                                            _ => Color.White
+                                                        }, col))
+                                                    {
                                                         Debug(col, colType);
-
                                                         ImGui.TreePop();
                                                     }
 
-                                                    if (isElementEnumerable && element != null)
+                                                    if (element != null && ImGui.IsItemHovered() && element.Width > 0 && element.Height > 0)
                                                     {
-                                                        if (ImGui.IsItemHovered())
-                                                        {
-                                                            if (element.Width > 0 && element.Height > 0)
-                                                                Graphics.DrawFrame(element.GetClientRectCache, ColorSwaper.Value, 2);
-                                                        }
+                                                        Graphics.DrawFrame(element.GetClientRectCache, ColorSwaper.Value, 2);
                                                     }
                                                 }
 
@@ -867,19 +910,20 @@ namespace DevTree
                                             name = $"{property.Name} [{rmo.Address:X}]###{property.Name} {property.DeclaringType.FullName}";
                                         else
                                             name = $"{property.Name} ###{property.Name} {type.FullName}";
-                                        if (ColoredTreeNode(name, propertyValue is Element { IsVisible: true } ? Color.Green : Color.White))
+                                        if (ColoredTreeNode(name, propertyValue switch
+                                            {
+                                                Element { IsValid: false } => Color.DarkRed,
+                                                Element { IsVisible: true } => Color.Green,
+                                                _ => Color.White
+                                            }, propertyValue))
                                         {
                                             Debug(propertyValue);
                                             ImGui.TreePop();
                                         }
 
-                                        if (propertyValue is Element e)
+                                        if (propertyValue is Element { Width: > 0, Height: > 0 } e && ImGui.IsItemHovered())
                                         {
-                                            if (ImGui.IsItemHovered())
-                                            {
-                                                if (e.Width > 0 && e.Height > 0)
-                                                    Graphics.DrawFrame(e.GetClientRectCache, ColorSwaper.Value, 2);
-                                            }
+                                            Graphics.DrawFrame(e.GetClientRectCache, ColorSwaper.Value, 2);
                                         }
                                     }
                                 }
@@ -923,13 +967,10 @@ namespace DevTree
 
                             ImGui.PopStyleColor(4);
                         }
-                        else
+                        else if (TreeNode($"{field.Name} {type.FullName}", fieldValue))
                         {
-                            if (ImGui.TreeNode($"{field.Name} {type.FullName}"))
-                            {
-                                Debug(fieldValue);
-                                ImGui.TreePop();
-                            }
+                            Debug(fieldValue);
+                            ImGui.TreePop();
                         }
                     }
 

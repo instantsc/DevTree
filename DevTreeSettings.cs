@@ -7,37 +7,25 @@ namespace DevTree
 {
     public class DevSetting : ISettings
     {
-        public bool Opened = false;
-
-        public DevSetting()
-        {
-            DebugNearestEnts = Keys.NumPad6;
-            DebugHoverItem = Keys.NumPad5;
-            NearestEntsRange = new RangeNode<int>(300, 1, 2000);
-            LimitEntriesDrawn = new ToggleNode(true);
-            EntriesDrawLimit = new RangeNode<int>(500, 1, 5000);
-            Enable = new ToggleNode(false);
-            LimitForCollection = new RangeNode<int>(500, 2, 5000);
-        }
-
         [Menu("Toggle window", 0)]
         public ToggleNode ToggleWindow { get; set; } = new ToggleNode(false);
+
         [Menu("Toggle window key")]
         public HotkeyNode ToggleWindowKey { get; set; } = new HotkeyNode(Keys.NumPad9);
 
-        [Menu("Debug Nearest Ents")]
-        public HotkeyNode DebugNearestEnts { get; set; }
         [Menu("Debug Hover Item")]
-        public HotkeyNode DebugHoverItem { get; set; }
+        public HotkeyNode DebugHoverItem { get; set; } = Keys.NumPad5;
+
+        [Menu("Save hovered DevTree node")]
+        public HotkeyNode SaveDevTreeNode { get; set; } = Keys.NumPad8;
+
         [Menu("Nearest Ents Range")]
-        public RangeNode<int> NearestEntsRange { get; set; }
+        public RangeNode<int> NearestEntsRange { get; set; } = new(300, 1, 2000);
+
         [Menu("Limit for collections")]
-        public RangeNode<int> LimitForCollection { get; set; }
-        [Menu("Limit Entries Drawn", 0)]
-        public ToggleNode LimitEntriesDrawn { get; set; }
-        [Menu("Entries Draw Limit", 1, 0)]
-        public RangeNode<int> EntriesDrawLimit { get; set; }
-        public ToggleNode Enable { get; set; }
+        public RangeNode<int> LimitForCollection { get; set; } = new(500, 2, 5000);
+
+        public ToggleNode Enable { get; set; } = new(false);
 
         public bool ToggleWindowState;//Just save the state
     }

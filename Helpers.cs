@@ -29,11 +29,6 @@ namespace DevTree
             return type != typeof(string) && typeof(IEnumerable).IsAssignableFrom(type);
         }
 
-        public static bool IsCollection(Type type)
-        {
-            return typeof(ICollection).IsAssignableFrom(type) || typeof(ICollection<>).IsAssignableFrom(type);
-        }
-
         public static bool IsSimpleType(Type type)
         {
             return type.IsPrimitive || PrimitiveTypes.Contains(type) || Convert.GetTypeCode(type) != TypeCode.Object ||
@@ -41,11 +36,22 @@ namespace DevTree
                    IsSimpleType(type.GetGenericArguments()[0]);
         }
 
-        public static bool ColoredTreeNode(string text, Color color)
+        private bool ColoredTreeNode(string text, Color color, object entity)
         {
             ImGui.PushStyleColor(ImGuiCol.Text, color.ToImgui());
-            var result = ImGui.TreeNode(text);
+            var result = TreeNode(text, entity);
             ImGui.PopStyleColor();
+            return result;
+        }
+
+        private bool TreeNode(string text, object entity)
+        {
+            var result = ImGui.TreeNode(text);
+            if (ImGui.IsItemHovered())
+            {
+                _lastHoveredMenuItem = entity;
+            }
+
             return result;
         }
     }
