@@ -45,6 +45,7 @@ namespace DevTree
         private bool windowState;
         private object _lastHoveredMenuItem = null;
         public Func<List<PluginWrapper>> Plugins;
+        private Element UIHoverWithFallback => GameController.IngameState.UIHover switch { null or { Address: 0 } => GameController.IngameState.UIHoverElement, var s => s };
 
         public override void OnLoad()
         {
@@ -140,8 +141,8 @@ namespace DevTree
 
             if (Settings.DebugHoverItem.PressedOnce())
             {
-                var ingameStateUiHover = GameController.IngameState.UIHover;
-                var hoverItemIcon = GameController.IngameState.UIHover.AsObject<HoverItemIcon>();
+                var ingameStateUiHover = UIHoverWithFallback;
+                var hoverItemIcon = ingameStateUiHover.AsObject<HoverItemIcon>();
                 if (ingameStateUiHover.Address != 0)
                 {
                     AddObjects(new { Hover = ingameStateUiHover, HoverLikeItem = hoverItemIcon }, "Stored UIHover");
@@ -335,7 +336,7 @@ namespace DevTree
 
                 try
                 {
-                    Debug(GameController.IngameState.UIHover);
+                    Debug(UIHoverWithFallback);
                 }
                 catch (Exception e)
                 {
@@ -354,7 +355,7 @@ namespace DevTree
 
                 try
                 {
-                    Debug(GameController.IngameState.UIHover.AsObject<HoverItemIcon>());
+                    Debug((UIHoverWithFallback).AsObject<HoverItemIcon>());
                 }
                 catch (Exception e)
                 {
