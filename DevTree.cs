@@ -970,9 +970,13 @@ namespace DevTree
                     result = null;
                     return false;
                 case Element e:
-                    var parentOffset = ScanForElementOffset(e, e.Parent);
-                    var ingameUiOffset = ScanForElementOffset(e, GameController.IngameState.IngameUi);
-                    result = new { ParentOffset = parentOffset.ToHexString(), IngameUiOffset = ingameUiOffset.ToHexString() };
+                    var parentOffsets = ScanForElementOffset(e, e.Parent);
+                    var ingameUiOffsets = ScanForElementOffset(e, GameController.IngameState.IngameUi);
+                    result = new
+                    {
+                        ParentOffset = string.Join(", ", parentOffsets.Select(x => x.ToHexString())),
+                        IngameUiOffset = string.Join(", ", ingameUiOffsets.Select(x => x.ToHexString()))
+                    };
                     return true;
                 default:
                     result = null;
@@ -980,20 +984,22 @@ namespace DevTree
             }
         }
 
-        private static int? ScanForElementOffset(Element element, Element parentElement)
+        private static List<int> ScanForElementOffset(Element element, Element parentElement)
         {
-            int? result = null;
+            var offsets = new List<int>();
             if (parentElement != null)
             {
                 var pointers = element.M.ReadMem<long>(parentElement.Address, 8000);
-                var index = Array.IndexOf(pointers, element.Address);
-                if (index != -1)
+                var startIndex = 0;
+                int index;
+                while ((index = Array.IndexOf(pointers, element.Address, startIndex)) != -1)
                 {
-                    result = index * 0x8;
+                    offsets.Add(index * 0x8);
+                    startIndex = index + 1;
                 }
             }
 
-            return result;
+            return offsets;
         }
     }
 }
