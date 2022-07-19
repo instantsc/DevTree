@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Windows.Forms;
 using ExileCore;
@@ -39,6 +40,7 @@ namespace DevTree
         private readonly Dictionary<string, object> _dynamicTabCache = new Dictionary<string, object>();
         private readonly Dictionary<string, int> _collectionSkipValues = new Dictionary<string, int>();
         private readonly Dictionary<string, string> _collectionSearchValues = new Dictionary<string, string>();
+        private readonly ConditionalWeakTable<object, string> _objectSearchValues = new ConditionalWeakTable<object, string>();
         private List<string> Rarities;
         private MonsterRarity selectedRarity;
         private string selectedRarityString = "All";
@@ -564,42 +566,20 @@ namespace DevTree
                 }
 
                 ImGui.Indent();
+                _objectSearchValues.TryGetValue(obj, out var objectFilter);
+                objectFilter ??= "";
                 ImGui.BeginTabBar($"Tabs");
 
                 if (ImGui.BeginTabItem("Properties"))
                 {
-                    DebugObjectProperties(obj, type);
+                    DebugObjectProperties(obj, type, objectFilter);
 
                     ImGui.EndTabItem();
                 }
 
                 if (ImGui.BeginTabItem("Fields"))
                 {
-                    var fields = type.GetFields(Flags);
-
-                    foreach (var field in fields)
-                    {
-                        var fieldValue = field.GetValue(obj);
-
-                        if (IsSimpleType(field.FieldType))
-                        {
-                            ImGui.Text($"{field.Name}: ");
-                            ImGui.SameLine();
-                            ImGui.PushStyleColor(ImGuiCol.Text, new ImGuiVector4(1, 0.647f, 0, 1));
-                            ImGui.PushStyleColor(ImGuiCol.Button, new ImGuiVector4(0, 0, 0, 0));
-                            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new ImGuiVector4(0.25f, 0.25f, 0.25f, 1));
-                            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new ImGuiVector4(1, 1, 1, 1));
-
-                            if (ImGui.SmallButton($"{fieldValue}")) ImGui.SetClipboardText($"{fieldValue}");
-
-                            ImGui.PopStyleColor(4);
-                        }
-                        else if (TreeNode($"{field.Name} {type.FullName}", fieldValue))
-                        {
-                            Debug(fieldValue);
-                            ImGui.TreePop();
-                        }
-                    }
+                    DebugObjectFields(obj, type, objectFilter);
                     ImGui.EndTabItem();
                 }
 
@@ -639,12 +619,27 @@ namespace DevTree
 
                         if (cachedValue != null)
                         {
-                            DebugObjectProperties(cachedValue, cachedValue.GetType());
+                            DebugObjectProperties(cachedValue, cachedValue.GetType(), objectFilter);
                         }
                     }
                 }
 
+                ImGui.PushItemWidth(0);
+                ImGui.PushStyleColor(ImGuiCol.Tab, ImGui.GetColorU32(ImGuiCol.WindowBg));
+                ImGui.PushStyleColor(ImGuiCol.TabHovered, ImGui.GetColorU32(ImGuiCol.WindowBg));
+                ImGui.TabItemButton("##emptybutton");
+                ImGui.PopStyleColor(2);
+                ImGui.PopItemWidth();
                 ImGui.EndTabBar();
+
+                var oldPos = ImGui.GetCursorPos();
+                ImGui.SameLine(0, 0);
+                ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 1);
+                if (ImGui.InputTextWithHint("##objFilterEdit", "Filter", ref objectFilter, 200))
+                {
+                    _objectSearchValues.AddOrUpdate(obj, objectFilter);
+                }
+                ImGui.SetCursorPos(oldPos);
                 ImGui.Unindent();
             }
             catch (Exception e)
@@ -653,7 +648,37 @@ namespace DevTree
             }
         }
 
-        private void DebugObjectProperties(object obj, Type type)
+        private void DebugObjectFields(object obj, Type type, string filter)
+        {
+            var fields = type.GetFields(Flags)
+                .Where(x => string.IsNullOrEmpty(filter) || x.Name.Contains(filter, StringComparison.OrdinalIgnoreCase));
+
+            foreach (var field in fields)
+            {
+                var fieldValue = field.GetValue(obj);
+
+                if (IsSimpleType(field.FieldType))
+                {
+                    ImGui.Text($"{field.Name}: ");
+                    ImGui.SameLine();
+                    ImGui.PushStyleColor(ImGuiCol.Text, new ImGuiVector4(1, 0.647f, 0, 1));
+                    ImGui.PushStyleColor(ImGuiCol.Button, new ImGuiVector4(0, 0, 0, 0));
+                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new ImGuiVector4(0.25f, 0.25f, 0.25f, 1));
+                    ImGui.PushStyleColor(ImGuiCol.ButtonActive, new ImGuiVector4(1, 1, 1, 1));
+
+                    if (ImGui.SmallButton($"{fieldValue}")) ImGui.SetClipboardText($"{fieldValue}");
+
+                    ImGui.PopStyleColor(4);
+                }
+                else if (TreeNode($"{field.Name} {type.FullName}", fieldValue))
+                {
+                    Debug(fieldValue);
+                    ImGui.TreePop();
+                }
+            }
+        }
+
+        private void DebugObjectProperties(object obj, Type type, string filter)
         {
             if (obj is RemoteMemoryObject asMemoryObject)
             {
@@ -741,8 +766,11 @@ namespace DevTree
                 }
             }
 
-            var properties = type.GetProperties(Flags).Where(x => x.GetIndexParameters().Length == 0)
-               .OrderBy(x => x.PropertyType.GetInterface("IEnumerable") != null).ThenBy(x => x.Name);
+            var properties = type.GetAllProperties()
+                .Where(x => x.GetIndexParameters().Length == 0)
+                .Where(x => string.IsNullOrEmpty(filter) || x.Name.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(x => x.PropertyType.GetInterface("IEnumerable") != null)
+                .ThenBy(x => x.Name);
 
             foreach (var property in properties)
             {
