@@ -491,8 +491,16 @@ namespace DevTree
 
                     if (methodInfo != null && (methodInfo.Attributes & MethodAttributes.VtableLayoutMask) == 0)
                     {
-                        var toString = methodInfo?.Invoke(obj, null);
-                        if (toString != null) ImGui.TextColored(Color.Orange.ToImguiVec4(), toString.ToString());
+                        try
+                        {
+                            var toString = methodInfo.Invoke(obj, null);
+                            if (toString != null) ImGui.TextColored(Color.Orange.ToImguiVec4(), toString.ToString());
+                        }
+                        catch (Exception ex)
+                        {
+                            LogError($"ToString() -> {ex}");
+                            ImGui.TextColored(Color.Red.ToImguiVec4(), "ToString(): <exception thrown>");
+                        }
                     }
                 }
 
@@ -862,7 +870,8 @@ namespace DevTree
                                     foreach (var (col, index) in collection
                                                 .Cast<object>()
                                                 .Select((x, i) => (x, i))
-                                                .Where(x => string.IsNullOrEmpty(search) || x.ToString().Contains(search, StringComparison.InvariantCultureIgnoreCase))
+                                                .Where(x => string.IsNullOrEmpty(search) || 
+                                                            ToStringSafe(x)?.Contains(search, StringComparison.InvariantCultureIgnoreCase) == true)
                                                 .Skip(skip)
                                                 .Take(Settings.LimitForCollection))
                                     {
@@ -1029,6 +1038,19 @@ namespace DevTree
             }
 
             return offsets;
+        }
+
+        private string ToStringSafe(object obj)
+        {
+            try
+            {
+                return obj?.ToString();
+            }
+            catch (Exception ex)
+            {
+                LogError($"ToString() -> {ex}");
+                return null;
+            }
         }
     }
 }
