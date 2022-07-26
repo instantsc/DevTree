@@ -13,7 +13,6 @@ using ExileCore.PoEMemory.Components;
 using ExileCore.PoEMemory.Elements;
 using ExileCore.PoEMemory.MemoryObjects;
 using ExileCore.Shared;
-using ExileCore.Shared.Cache;
 using ExileCore.Shared.Enums;
 using ExileCore.Shared.Helpers;
 using ImGuiNET;
@@ -28,39 +27,30 @@ namespace DevTree
                                            BindingFlags.FlattenHierarchy;
 
         private static readonly HashSet<string> IgnoredRMOProperties = new HashSet<string> { "M", "TheGame", "Address" };
-        private int _version;
-        private TimeCache<Color> ColorSwaper;
-        private List<Entity> DebugEntities = new List<Entity>(128);
-        private double Error = 0;
-        private readonly Dictionary<string, MethodInfo> genericMethodCache = new Dictionary<string, MethodInfo>();
-        private MethodInfo GetComponentMethod;
-        private string inputFilter = "";
-        private string guiObjAddr = "";
-        private readonly Dictionary<string, object> objects = new Dictionary<string, object>();
+        private static readonly MethodInfo GetComponentMethod = typeof(Entity).GetMethod("GetComponent");
+        private readonly Dictionary<string, MethodInfo> _genericMethodCache = new Dictionary<string, MethodInfo>();
+        private readonly Dictionary<string, object> _debugObjects = new Dictionary<string, object>();
         private readonly Dictionary<string, object> _dynamicTabCache = new Dictionary<string, object>();
         private readonly Dictionary<string, int> _collectionSkipValues = new Dictionary<string, int>();
         private readonly Dictionary<string, string> _collectionSearchValues = new Dictionary<string, string>();
         private readonly ConditionalWeakTable<object, string> _objectSearchValues = new ConditionalWeakTable<object, string>();
-        private List<string> Rarities;
-        private MonsterRarity selectedRarity;
-        private string selectedRarityString = "All";
-        private bool windowState;
+        private List<Entity> _debugEntities = new List<Entity>();
+        private string _inputFilter = "";
+        private string _guiObjAddr = "";
+        private MonsterRarity? _selectedRarity;
+        private bool _windowState;
         private object _lastHoveredMenuItem = null;
         public Func<List<PluginWrapper>> Plugins;
         private Element UIHoverWithFallback => GameController.IngameState.UIHover switch { null or { Address: 0 } => GameController.IngameState.UIHoverElement, var s => s };
 
         public override void OnLoad()
         {
-            var values = Enum.GetNames(typeof(MonsterRarity));
-            Rarities = new List<string>(values);
-            Rarities.Add("All");
             Plugins = () => new List<PluginWrapper>();
         }
 
         public override bool Initialise()
         {
             Force = true;
-            GetComponentMethod = typeof(Entity).GetMethod("GetComponent");
 
             try
             {
@@ -71,11 +61,9 @@ namespace DevTree
                 LogError($"{e}");
             }
 
-            ColorSwaper = new TimeCache<Color>(() => { return Color.Yellow; }, 25);
-
             Input.RegisterKey(Settings.ToggleWindowKey);
-            Input.RegisterKey(Settings.DebugHoverItem);
-            Settings.DebugHoverItem.OnValueChanged += () => { Input.RegisterKey(Settings.DebugHoverItem); };
+            Input.RegisterKey(Settings.DebugUIHoverItemKey);
+            Settings.DebugUIHoverItemKey.OnValueChanged += () => { Input.RegisterKey(Settings.DebugUIHoverItemKey); };
             Settings.ToggleWindowKey.OnValueChanged += () => { Input.RegisterKey(Settings.ToggleWindowKey); };
             Name = "DevTree";
             return true;
@@ -89,9 +77,9 @@ namespace DevTree
             _dynamicTabCache.Clear();
         }
 
-        public void InitObjects()
+        private void InitObjects()
         {
-            objects.Clear();
+            _debugObjects.Clear();
             AddObjects(GameController.Cache);
             AddObjects(GameController);
             AddObjects(GameController.Game);
@@ -108,7 +96,7 @@ namespace DevTree
             AddObjects(pluginWrappers, "PluginWrappers");
         }
 
-        public void AddObjects(object o, string name = null)
+        private void AddObjects(object o, string name = null)
         {
             if (o == null)
             {
@@ -117,20 +105,20 @@ namespace DevTree
             }
 
             var type = o.GetType();
-            if (name == null) name = $"{type.Name}";
+            name ??= $"{type.Name}";
 
-            if (o is RemoteMemoryObject || o is FileInMemory)
+            if (o is RemoteMemoryObject or FileInMemory)
             {
                 var propertyInfo = type.GetProperty("Address");
                 if (propertyInfo != null) name += $" ({(long)propertyInfo.GetValue(o, null):X})##InitObject";
             }
 
-            objects[name] = o;
+            _debugObjects[name] = o;
         }
 
         public override void Render()
         {
-            if (Settings.ToggleWindow)
+            if (Settings.ToggleWindowUsingHotkey)
             {
                 if (Settings.ToggleWindowKey.PressedOnce())
                 {
@@ -141,7 +129,7 @@ namespace DevTree
                     return;
             }
 
-            if (Settings.DebugHoverItem.PressedOnce())
+            if (Settings.DebugUIHoverItemKey.PressedOnce())
             {
                 var ingameStateUiHover = UIHoverWithFallback;
                 var hoverItemIcon = ingameStateUiHover.AsObject<HoverItemIcon>();
@@ -151,7 +139,7 @@ namespace DevTree
                 }
             }
 
-            if (Settings.SaveDevTreeNode.PressedOnce())
+            if (Settings.SaveHoveredDevTreeNodeKey.PressedOnce())
             {
                 if (_lastHoveredMenuItem != null)
                 {
@@ -178,15 +166,15 @@ namespace DevTree
                 }
             }
 
-            windowState = Settings.Enable;
-            ImGui.Begin($"{Name}", ref windowState);
+            _windowState = Settings.Enable;
+            ImGui.Begin($"{Name}", ref _windowState);
 
-            if (Settings.Enable != windowState)
+            if (Settings.Enable != _windowState)
             {
-                if (!Settings.ToggleWindow)
-                    Settings.Enable.Value = windowState;
+                if (!Settings.ToggleWindowUsingHotkey)
+                    Settings.Enable.Value = _windowState;
                 else
-                    Settings.ToggleWindowState = windowState;
+                    Settings.ToggleWindowState = _windowState;
             }
 
             if (ImGui.Button("Reload")) InitObjects();
@@ -194,26 +182,24 @@ namespace DevTree
             ImGui.SameLine();
             ImGui.PushItemWidth(200);
 			var mem = GameController.Memory;
-			var FileRootAddr = mem.AddressOfProcess + mem.BaseOffsets[OffsetsName.FileRoot];
-			ImGui.Text($"FileRoot: {FileRootAddr:X}");
+			var fileRootAddr = mem.AddressOfProcess + mem.BaseOffsets[OffsetsName.FileRoot];
+			ImGui.Text($"FileRoot: {fileRootAddr:X}");
 
-            ImGui.InputText("Filter", ref inputFilter, 128);
+            ImGui.InputText("Filter", ref _inputFilter, 128);
 
             ImGui.PopItemWidth();
             ImGui.SameLine();
             ImGui.PushItemWidth(128);
 
-            if (ImGui.BeginCombo("Rarity", selectedRarityString))
+            if (ImGui.BeginCombo("Rarity", _selectedRarity?.ToString()??"All"))
             {
-                for (var index = 0; index < Rarities.Count; index++)
+                foreach (var rarity in Enum.GetValues<MonsterRarity>().Cast<MonsterRarity?>().Append(null))
                 {
-                    var rarity = Rarities[index];
-                    var isSelected = selectedRarityString == rarity;
+                    var isSelected = _selectedRarity == rarity;
 
-                    if (ImGui.Selectable(rarity, isSelected))
+                    if (ImGui.Selectable(rarity?.ToString()??"All", isSelected))
                     {
-                        selectedRarityString = rarity;
-                        selectedRarity = (MonsterRarity)index;
+                        _selectedRarity = rarity;
                     }
 
                     if (isSelected) ImGui.SetItemDefaultFocus();
@@ -227,49 +213,22 @@ namespace DevTree
 
             if (ImGui.Button("Debug around entities"))
             {
-                var entites = GameController.Entities;
-                var player = GameController.Player;
-                var playerGridPos = player.GridPos;
-
-                if (!selectedRarityString.Equals("All", StringComparison.Ordinal))
-                {
-                    if (inputFilter.Length == 0)
-                    {
-                        DebugEntities = entites.Where(x => x.Rarity == selectedRarity &&
-                                                           x.GridPos.Distance(playerGridPos) < Settings.NearestEntsRange)
-                           .OrderBy(x => x.GridPos.Distance(playerGridPos)).ToList();
-                    }
-                    else
-                    {
-                        DebugEntities = entites
-                           .Where(x => (x.Path.Contains(inputFilter) || x.Address.ToString("x").ToLower().Contains(inputFilter.ToLower())) &&
-                                       x.GetComponent<ObjectMagicProperties>()?.Rarity == selectedRarity &&
-                                       x.GridPos.Distance(playerGridPos) < Settings.NearestEntsRange)
-                           .OrderBy(x => x.GridPos.Distance(playerGridPos)).ToList();
-                    }
-                }
-                else
-                {
-                    if (inputFilter.Length == 0)
-                    {
-                        DebugEntities = entites.Where(x => x.GridPos.Distance(playerGridPos) < Settings.NearestEntsRange)
-                           .OrderBy(x => x.GridPos.Distance(playerGridPos)).ToList();
-                    }
-                    else
-                    {
-                        DebugEntities = entites
-                           .Where(x => (x.Path.Contains(inputFilter) || x.Address.ToString("x").ToLower().Contains(inputFilter.ToLower())) &&
-                                       x.GridPos.Distance(playerGridPos) < Settings.NearestEntsRange)
-                           .OrderBy(x => x.GridPos.Distance(playerGridPos)).ToList();
-                    }
-                }
+                var playerGridPos = GameController.Player.GridPos;
+                _debugEntities = GameController.Entities
+                    .Where(x => string.IsNullOrEmpty(_inputFilter) ||
+                                x.Path.Contains(_inputFilter) ||
+                                x.Address.ToString("x").Contains(_inputFilter, StringComparison.OrdinalIgnoreCase))
+                    .Where(x => _selectedRarity == null || x.GetComponent<ObjectMagicProperties>()?.Rarity == _selectedRarity)
+                    .Where(x => x.GridPos.Distance(playerGridPos) < Settings.NearestEntitiesRange)
+                    .OrderBy(x => x.GridPos.Distance(playerGridPos))
+                    .ToList();
             }
 
             ImGui.SameLine();
             ImGui.PushItemWidth(128);
-            if (ImGui.InputText("CheckAddressIsGuiObject", ref guiObjAddr, 128))
+            if (ImGui.InputText("CheckAddressIsGuiObject", ref _guiObjAddr, 128))
             {
-                if (long.TryParse(guiObjAddr, NumberStyles.HexNumber, CultureInfo.CurrentCulture, out var objAddr))
+                if (long.TryParse(_guiObjAddr, NumberStyles.HexNumber, CultureInfo.CurrentCulture, out var objAddr))
                 {
                     var queue = new Queue<Element>();
                     queue.Enqueue(GameController.Game.IngameState.UIRoot);
@@ -309,9 +268,9 @@ namespace DevTree
                 }
             }
 
-            foreach (var o in objects)
+            foreach (var o in _debugObjects)
             {
-                if (TreeNode($"{o.Key}##{_version}", o.Value))
+                if (TreeNode($"{o.Key}##0", o.Value))
                 {
                     ImGui.Indent();
 
@@ -404,12 +363,12 @@ namespace DevTree
                         if (ImGui.IsItemHovered())
                         {
                             var clientRectCache = el.GetClientRectCache;
-                            Graphics.DrawFrame(clientRectCache, ColorSwaper.Value, 1);
+                            Graphics.DrawFrame(clientRectCache, Settings.FrameColor, 1);
 
                             foreach (var element in el.Children)
                             {
                                 clientRectCache = element.GetClientRectCache;
-                                Graphics.DrawFrame(clientRectCache, ColorSwaper.Value, 1);
+                                Graphics.DrawFrame(clientRectCache, Settings.FrameColor, 1);
                             }
                         }
 
@@ -424,13 +383,13 @@ namespace DevTree
                 ImGui.TreePop();
             }
 
-            if (DebugEntities.Count > 0 && ImGui.TreeNode($"Entities {DebugEntities.Count}"))
+            if (_debugEntities.Count > 0 && ImGui.TreeNode($"Entities {_debugEntities.Count}"))
             {
                 var camera = GameController.IngameState.Camera;
 
-                for (var index = 0; index < DebugEntities.Count; index++)
+                for (var index = 0; index < _debugEntities.Count; index++)
                 {
-                    var debugEntity = DebugEntities[index];
+                    var debugEntity = _debugEntities[index];
                     var worldtoscreen = camera.WorldToScreen(debugEntity.Pos);
 
                     Graphics.DrawText($"{index}", worldtoscreen);
@@ -479,7 +438,7 @@ namespace DevTree
             {
                 if (obj == null)
                 {
-                    ImGui.TextColored(Color.Red.ToImguiVec4(), "Null");
+                    ImGui.TextColored(Settings.ErrorColor.Value.ToImguiVec4(), "Null");
                     return;
                 }
 
@@ -499,7 +458,7 @@ namespace DevTree
                         catch (Exception ex)
                         {
                             LogError($"ToString() -> {ex}");
-                            ImGui.TextColored(Color.Red.ToImguiVec4(), "ToString(): <exception thrown>");
+                            ImGui.TextColored(Settings.ErrorColor.Value.ToImguiVec4(), "ToString(): <exception thrown>");
                         }
                     }
                 }
@@ -551,11 +510,11 @@ namespace DevTree
                 {
                     var key = type.GetProperty("Key").GetValue(obj, null);
                     var value = type.GetProperty("Value").GetValue(obj, null);
-                    var valueType = value.GetType();
+                    var valueType = value?.GetType();
 
-                    if (IsEnumerable(valueType))
+                    if (valueType != null && IsEnumerable(valueType))
                     {
-                        var count = valueType.GetProperty("Count").GetValue(value, null);
+                        var count = valueType.GetProperty("Count")?.GetValue(value, null);
 
                         if (TreeNode($"{key} {count}", value))
                         {
@@ -569,14 +528,14 @@ namespace DevTree
 
                 if (isMemoryObject is { Address: 0 })
                 {
-                    ImGui.TextColored(Color.Red.ToImguiVec4(), "Address 0. Cant read this object.");
+                    ImGui.TextColored(Settings.ErrorColor.Value.ToImguiVec4(), "Address 0. Cant read this object.");
                     return;
                 }
 
                 ImGui.Indent();
                 _objectSearchValues.TryGetValue(obj, out var objectFilter);
                 objectFilter ??= "";
-                ImGui.BeginTabBar($"Tabs");
+                ImGui.BeginTabBar("Tabs");
 
                 if (ImGui.BeginTabItem("Properties"))
                 {
@@ -742,10 +701,10 @@ namespace DevTree
                                     continue;
                                 }
 
-                                if (!genericMethodCache.TryGetValue(component.Key, out var generic))
+                                if (!_genericMethodCache.TryGetValue(component.Key, out var generic))
                                 {
                                     generic = GetComponentMethod.MakeGenericMethod(componentType);
-                                    genericMethodCache[component.Key] = generic;
+                                    _genericMethodCache[component.Key] = generic;
                                 }
 
                                 var g = generic.Invoke(e, null);
@@ -762,7 +721,7 @@ namespace DevTree
 
                         if (e.HasComponent<Base>())
                         {
-                            if (ImGui.TreeNode($"Item info###__Base"))
+                            if (ImGui.TreeNode("Item info###__Base"))
                             {
                                 var BIT = GameController.Files.BaseItemTypes.Translate(e.Path);
                                 Debug(BIT);
@@ -792,7 +751,7 @@ namespace DevTree
                     {
                         ImGui.Text($"{property.Name}: ");
                         ImGui.SameLine();
-                        ImGui.TextColored(Color.Red.ToImguiVec4(), "Null");
+                        ImGui.TextColored(Settings.ErrorColor.Value.ToImguiVec4(), "Null");
                         continue;
                     }
 
@@ -840,7 +799,7 @@ namespace DevTree
                                             if (el is Element e)
                                             {
                                                 var clientRectCache = e.GetClientRectCache;
-                                                Graphics.DrawFrame(clientRectCache, ColorSwaper.Value, 1);
+                                                Graphics.DrawFrame(clientRectCache, Settings.FrameColor, 1);
                                                 Graphics.DrawText(index.ToString(), clientRectCache.Center);
                                                 index++;
                                             }
@@ -873,11 +832,11 @@ namespace DevTree
                                                 .Where(x => string.IsNullOrEmpty(search) || 
                                                             ToStringSafe(x)?.Contains(search, StringComparison.InvariantCultureIgnoreCase) == true)
                                                 .Skip(skip)
-                                                .Take(Settings.LimitForCollection))
+                                                .Take(Settings.LimitForCollections))
                                     {
                                         if (col == null)
                                         {
-                                            ImGui.TextColored(Color.Red.ToImguiVec4(), "Null");
+                                            ImGui.TextColored(Settings.ErrorColor.Value.ToImguiVec4(), "Null");
                                             continue;
                                         }
 
@@ -930,7 +889,7 @@ namespace DevTree
 
                                             if (element != null && ImGui.IsItemHovered() && element.Width > 0 && element.Height > 0)
                                             {
-                                                Graphics.DrawFrame(element.GetClientRectCache, ColorSwaper.Value, 2);
+                                                Graphics.DrawFrame(element.GetClientRectCache, Settings.FrameColor, 2);
                                             }
                                         }
                                     }
@@ -971,7 +930,7 @@ namespace DevTree
 
                                 if (propertyValue is Element { Width: > 0, Height: > 0 } e && ImGui.IsItemHovered())
                                 {
-                                    Graphics.DrawFrame(e.GetClientRectCache, ColorSwaper.Value, 2);
+                                    Graphics.DrawFrame(e.GetClientRectCache, Settings.FrameColor, 2);
                                 }
                             }
                         }
@@ -981,7 +940,7 @@ namespace DevTree
                 {
                     ImGui.Text($"{property.Name}: ");
                     ImGui.SameLine();
-                    ImGui.TextColored(Color.Red.ToImguiVec4(), "<exception thrown>");
+                    ImGui.TextColored(Settings.ErrorColor.Value.ToImguiVec4(), "<exception thrown>");
                     LogError($"{property.Name} -> {e}");
                 }
             }
