@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using ExileCore.Shared.Helpers;
 using GameOffsets.Native;
 using ImGuiNET;
-using SharpDX;
 
 namespace DevTree
 {
@@ -18,10 +17,14 @@ namespace DevTree
             typeof(DateTime),
             typeof(TimeSpan),
             typeof(Guid),
-            typeof(Vector2),
+            typeof(SharpDX.Vector2),
+            typeof(SharpDX.Vector3),
+            typeof(SharpDX.Vector4),
+            typeof(System.Numerics.Vector2),
+            typeof(System.Numerics.Vector3),
+            typeof(System.Numerics.Vector4),
             typeof(Vector2i),
-            typeof(Vector3),
-            typeof(ColorBGRA)
+            typeof(SharpDX.ColorBGRA)
         };
 
         public static bool IsEnumerable(Type type)
@@ -31,12 +34,16 @@ namespace DevTree
 
         public static bool IsSimpleType(Type type)
         {
-            return type.IsPrimitive || PrimitiveTypes.Contains(type) || Convert.GetTypeCode(type) != TypeCode.Object ||
-                   type.BaseType == typeof(Enum) || type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>) &&
+            return type.IsPrimitive ||
+                   PrimitiveTypes.Contains(type) ||
+                   Convert.GetTypeCode(type) != TypeCode.Object ||
+                   type.BaseType == typeof(Enum) ||
+                   type.IsGenericType &&
+                   type.GetGenericTypeDefinition() == typeof(Nullable<>) &&
                    IsSimpleType(type.GetGenericArguments()[0]);
         }
 
-        private bool ColoredTreeNode(string text, Color color, object entity)
+        private bool ColoredTreeNode(string text, SharpDX.Color color, object entity)
         {
             ImGui.PushStyleColor(ImGuiCol.Text, color.ToImgui());
             var result = TreeNode(text, entity);
