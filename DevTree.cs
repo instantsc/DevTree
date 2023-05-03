@@ -557,15 +557,7 @@ namespace DevTree
                     if (ImGui.IsItemClicked()) ImGui.SetClipboardText(remoteMemoryObject.Address.ToString());
 
                     ImGui.SameLine();
-
-                    ImGui.PushStyleColor(ImGuiCol.Text, new ImGuiVector4(1, 0.647f, 0, 1));
-                    ImGui.PushStyleColor(ImGuiCol.Button, new ImGuiVector4(0, 0, 0, 0));
-                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new ImGuiVector4(0.25f, 0.25f, 0.25f, 1));
-                    ImGui.PushStyleColor(ImGuiCol.ButtonActive, new ImGuiVector4(1, 1, 1, 1));
-
-                    if (ImGui.SmallButton($"{remoteMemoryObject.Address:X}")) ImGui.SetClipboardText(remoteMemoryObject.Address.ToString());
-
-                    ImGui.PopStyleColor(4);
+                    CopyableTextButton($"{remoteMemoryObject.Address:X}");
                     ImGui.EndTabItem();
 
                     var key = remoteMemoryObject switch
@@ -628,14 +620,7 @@ namespace DevTree
                 {
                     ImGui.Text($"{field.Name}: ");
                     ImGui.SameLine();
-                    ImGui.PushStyleColor(ImGuiCol.Text, new ImGuiVector4(1, 0.647f, 0, 1));
-                    ImGui.PushStyleColor(ImGuiCol.Button, new ImGuiVector4(0, 0, 0, 0));
-                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new ImGuiVector4(0.25f, 0.25f, 0.25f, 1));
-                    ImGui.PushStyleColor(ImGuiCol.ButtonActive, new ImGuiVector4(1, 1, 1, 1));
-
-                    if (ImGui.SmallButton($"{fieldValue}")) ImGui.SetClipboardText($"{fieldValue}");
-
-                    ImGui.PopStyleColor(4);
+                    CopyableTextButton($"{fieldValue}");
                 }
                 else if (TreeNode($"{field.Name} {type.FullName}", fieldValue))
                 {
@@ -651,28 +636,13 @@ namespace DevTree
             {
                 ImGui.Text("Address: ");
                 ImGui.SameLine();
-                ImGui.PushStyleColor(ImGuiCol.Text, new ImGuiVector4(1, 0.647f, 0, 1));
-                ImGui.PushStyleColor(ImGuiCol.Button, new ImGuiVector4(0, 0, 0, 0));
-                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new ImGuiVector4(0.25f, 0.25f, 0.25f, 1));
-                ImGui.PushStyleColor(ImGuiCol.ButtonActive, new ImGuiVector4(1, 1, 1, 1));
-
-                if (ImGui.SmallButton($"{asMemoryObject.Address:X}"))
-                    ImGui.SetClipboardText($"{asMemoryObject.Address:X}");
-
-                ImGui.PopStyleColor(4);
+                CopyableTextButton($"{asMemoryObject.Address:X}");
 
                 if (asMemoryObject is Component asComponent)
                 {
                     ImGui.Text("OwnerAddress: ");
                     ImGui.SameLine();
-                    ImGui.PushStyleColor(ImGuiCol.Text, new ImGuiVector4(1, 0.647f, 0, 1));
-                    ImGui.PushStyleColor(ImGuiCol.Button, new ImGuiVector4(0, 0, 0, 0));
-                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new ImGuiVector4(0.25f, 0.25f, 0.25f, 1));
-                    ImGui.PushStyleColor(ImGuiCol.ButtonActive, new ImGuiVector4(1, 1, 1, 1));
-
-                    if (ImGui.SmallButton($"{asComponent.OwnerAddress:X}")) ImGui.SetClipboardText($"{asComponent.OwnerAddress:X}");
-
-                    ImGui.PopStyleColor(4);
+                    CopyableTextButton($"{asComponent.OwnerAddress:X}");
                 }
 
                 switch (asMemoryObject)
@@ -689,14 +659,7 @@ namespace DevTree
                                 {
                                     ImGui.Text($"{component.Key}: Not implemented.");
                                     ImGui.SameLine();
-                                    ImGui.PushStyleColor(ImGuiCol.Text, new ImGuiVector4(1, 0.647f, 0, 1));
-                                    ImGui.PushStyleColor(ImGuiCol.Button, new ImGuiVector4(0, 0, 0, 0));
-                                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new ImGuiVector4(0.25f, 0.25f, 0.25f, 1));
-                                    ImGui.PushStyleColor(ImGuiCol.ButtonActive, new ImGuiVector4(1, 1, 1, 1));
-
-                                    if (ImGui.SmallButton($"{component.Value:X}")) ImGui.SetClipboardText($"{component.Value:X}");
-
-                                    ImGui.PopStyleColor(4);
+                                    CopyableTextButton($"{component.Value:X}");
 
                                     continue;
                                 }
@@ -760,15 +723,8 @@ namespace DevTree
                     {
                         ImGui.Text($"{property.Name}: ");
                         ImGui.SameLine();
-                        ImGui.PushStyleColor(ImGuiCol.Text, new ImGuiVector4(1, 0.647f, 0, 1));
-                        ImGui.PushStyleColor(ImGuiCol.Button, new ImGuiVector4(0, 0, 0, 0));
-                        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new ImGuiVector4(0.25f, 0.25f, 0.25f, 1));
-                        ImGui.PushStyleColor(ImGuiCol.ButtonActive, new ImGuiVector4(1, 1, 1, 1));
-
                         var propertyVal = property.Name == "Address" ? ((long)propertyValue).ToString("x") : propertyValue.ToString();
-                        if (ImGui.SmallButton(propertyVal)) ImGui.SetClipboardText(propertyVal);
-
-                        ImGui.PopStyleColor(4);
+                        CopyableTextButton(propertyVal);
                     }
                     else
                     {
@@ -826,7 +782,7 @@ namespace DevTree
                                         _collectionSearchValues[collectionKey] = search;
                                     }
 
-                                    foreach (var (col, index) in collection
+                                    foreach (var (item, index) in collection
                                                 .Cast<object>()
                                                 .Select((x, i) => (x, i))
                                                 .Where(x => string.IsNullOrEmpty(search) || 
@@ -834,14 +790,14 @@ namespace DevTree
                                                 .Skip(skip)
                                                 .Take(Settings.LimitForCollections))
                                     {
-                                        if (col == null)
+                                        if (item == null)
                                         {
                                             ImGui.TextColored(Settings.ErrorColor.Value.ToImguiVec4(), "Null");
                                             continue;
                                         }
 
-                                        var colType = col.GetType();
-                                        var colName = col switch
+                                        var colType = item.GetType();
+                                        var colName = item switch
                                         {
                                             Entity e => e.Path,
                                             Inventory e => $"{e.InvType} Count: ({e.ItemCount}) Box:{e.TotalBoxesInInventoryRow}",
@@ -851,14 +807,14 @@ namespace DevTree
                                         };
 
                                         if (IsSimpleType(colType))
-                                            ImGui.TextUnformatted(col.ToString());
+                                            CopyableTextButton(item.ToString());
                                         else
                                         {
                                             Element element = null;
 
                                             if (isElementEnumerable)
                                             {
-                                                element = col as Element;
+                                                element = item as Element;
 
                                                 //  colName += $" ({element.ChildCount})";
                                                 ImGui.Text($" ({element.ChildCount})");
@@ -871,19 +827,27 @@ namespace DevTree
                                                 if (methodInfo != null &&
                                                     (methodInfo.Attributes & MethodAttributes.VtableLayoutMask) == 0)
                                                 {
-                                                    var toString = methodInfo?.Invoke(col, null);
-                                                    if (toString != null) colName = $"{toString}";
+                                                    try
+                                                    {
+                                                        var toString = methodInfo?.Invoke(item, null);
+                                                        if (toString != null) colName = $"{toString}";
+                                                    }
+                                                    catch (Exception ex)
+                                                    {
+                                                        LogError($"ToString() -> {ex}");
+                                                        colName = $"{colName}: ToString(): <exception thrown>";
+                                                    }
                                                 }
                                             }
 
-                                            if (ColoredTreeNode($"[{index}] {colName} ###{index},{col.GetType().Name}", col switch
+                                            if (ColoredTreeNode($"[{index}] {colName} ###{index},{item.GetType().Name}", item switch
                                                 {
                                                     Element { IsValid: false } => Color.DarkRed,
                                                     Element { IsVisible: true } => Color.Green,
                                                     _ => Color.White
-                                                }, col))
+                                                }, item))
                                             {
-                                                Debug(col, colType);
+                                                Debug(item, colType);
                                                 ImGui.TreePop();
                                             }
 
@@ -944,6 +908,21 @@ namespace DevTree
                     LogError($"{property.Name} -> {e}");
                 }
             }
+        }
+
+        private static void CopyableTextButton(string text)
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, new ImGuiVector4(1, 0.647f, 0, 1));
+            ImGui.PushStyleColor(ImGuiCol.Button, new ImGuiVector4(0, 0, 0, 0));
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new ImGuiVector4(0.25f, 0.25f, 0.25f, 1));
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new ImGuiVector4(1, 1, 1, 1));
+
+            if (ImGui.SmallButton(text))
+            {
+                ImGui.SetClipboardText(text);
+            }
+
+            ImGui.PopStyleColor(4);
         }
 
         private bool GetDynamicTabObject(RemoteMemoryObject remoteMemoryObject, out object result)
