@@ -26,7 +26,16 @@ namespace DevTree
         private const BindingFlags Flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static |
                                            BindingFlags.FlattenHierarchy;
 
+        private record ParamsAndResult(List<string> Params, object Result, bool WasCalled);
         private static readonly HashSet<string> IgnoredRMOProperties = new HashSet<string> { "M", "TheGame", "Address" };
+
+        private static readonly IReadOnlySet<MethodInfo> ExcludedMethods = new HashSet<MethodInfo>
+        {
+            typeof(object).GetMethod("Finalize"),
+            typeof(object).GetMethod("Equals", BindingFlags.Public | BindingFlags.Instance, new[] { typeof(object) }),
+            typeof(object).GetMethod("Equals", BindingFlags.Public | BindingFlags.Static, new[] { typeof(object), typeof(object) }),
+            typeof(object).GetMethod("ReferenceEquals", BindingFlags.Public | BindingFlags.Static, new[] { typeof(object), typeof(object) }),
+        };
         private static readonly MethodInfo GetComponentMethod = typeof(Entity).GetMethod("GetComponent");
         private readonly Dictionary<string, MethodInfo> _genericMethodCache = new Dictionary<string, MethodInfo>();
         private readonly Dictionary<string, object> _debugObjects = new Dictionary<string, object>();
@@ -34,6 +43,7 @@ namespace DevTree
         private readonly Dictionary<string, int> _collectionSkipValues = new Dictionary<string, int>();
         private readonly Dictionary<string, string> _collectionSearchValues = new Dictionary<string, string>();
         private readonly ConditionalWeakTable<object, string> _objectSearchValues = new ConditionalWeakTable<object, string>();
+        private readonly ConditionalWeakTable<object, Dictionary<MethodInfo, ParamsAndResult>> _methodParameterInvokeValues = new();
         private List<Entity> _debugEntities = new List<Entity>();
         private string _inputFilter = "";
         private string _guiObjAddr = "";
@@ -475,11 +485,22 @@ namespace DevTree
                 {
                     var index = 0;
 
-                    foreach (var col in enumerable)
+                    foreach (var item in enumerable)
                     {
-                        var colType = col.GetType();
+                        if (item == null)
+                        {
+                            if (TreeNode($"[{index++}]", item))
+                            {
+                                ImGui.TreePop();
+                            }
+                            ImGui.SameLine();
+                            ImGui.TextColored(Settings.ErrorColor.Value.ToImguiVec4(), "Null");
+                            continue;
+                        }
 
-                        string colName = col switch
+                        var colType = item.GetType();
+
+                        string colName = item switch
                         {
                             Entity e => e.Path,
                             _ => colType.Name
@@ -489,18 +510,16 @@ namespace DevTree
 
                         if (methodInfo != null && (methodInfo.Attributes & MethodAttributes.VtableLayoutMask) == 0)
                         {
-                            var toString = methodInfo.Invoke(col, null);
+                            var toString = methodInfo.Invoke(item, null);
                             if (toString != null) colName = $"{toString}";
                         }
 
-                        if (TreeNode($"[{index}] {colName}", col))
+                        if (TreeNode($"[{index++}] {colName}", item))
                         {
-                            Debug(col, colType);
+                            Debug(item, colType);
 
                             ImGui.TreePop();
                         }
-
-                        index++;
                     }
 
                     return;
@@ -547,6 +566,13 @@ namespace DevTree
                 if (ImGui.BeginTabItem("Fields"))
                 {
                     DebugObjectFields(obj, type, objectFilter);
+                    ImGui.EndTabItem();
+                }
+
+                if (ImGui.BeginTabItem("Methods"))
+                {
+                    DebugObjectMethods(obj, type, objectFilter);
+
                     ImGui.EndTabItem();
                 }
 
@@ -906,6 +932,118 @@ namespace DevTree
                     ImGui.SameLine();
                     ImGui.TextColored(Settings.ErrorColor.Value.ToImguiVec4(), "<exception thrown>");
                     LogError($"{property.Name} -> {e}");
+                }
+            }
+        }
+
+        private void DebugObjectMethods(object obj, Type type, string filter)
+        {
+            var methods = type.GetAllMethods()
+                .Where(x => !x.IsGenericMethodDefinition && !x.IsSpecialName && !x.Name.Contains('<'))
+                .Where(x => string.IsNullOrEmpty(filter) || x.Name.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                .Except(ExcludedMethods)
+                .OrderBy(x => x.Name);
+
+            foreach (var method in methods)
+            {
+                try
+                {
+                    ImGui.PushID(
+                        $"{method.Name} {method.DeclaringType.AssemblyQualifiedName} {string.Join(";", method.GetParameters().Select(x => x.ParameterType.AssemblyQualifiedName))}");
+
+                    ImGui.Text($"{method.DeclaringType.FullName}:{method.Name}(");
+                    ImGui.SameLine(0, 0);
+                    var canCall = true;
+                    foreach (var parameter in method.GetParameters())
+                    {
+                        var text = $"{parameter.ParameterType.Name} {parameter.Name}, ";
+                        if (!(parameter.ParameterType == typeof(string) ||
+                              parameter.ParameterType == typeof(float) ||
+                              parameter.ParameterType == typeof(double) ||
+                              parameter.ParameterType == typeof(int) ||
+                              parameter.ParameterType == typeof(uint) ||
+                              parameter.ParameterType == typeof(long) ||
+                              parameter.ParameterType == typeof(ulong) ||
+                              parameter.ParameterType == typeof(byte) ||
+                              parameter.ParameterType == typeof(short)))
+                        {
+                            canCall = false;
+                            ImGui.TextColored(Settings.ErrorColor.Value.ToImguiVec4(), text);
+                        }
+                        else
+                        {
+                            ImGui.Text(text);
+                        }
+
+                        ImGui.SameLine(0, 0);
+                    }
+
+                    ImGui.Text($") -> {method.ReturnType.Name}");
+                    if (canCall)
+                    {
+                        _methodParameterInvokeValues.TryGetValue(obj, out var paramDict);
+                        paramDict ??= new Dictionary<MethodInfo, ParamsAndResult>();
+                        _methodParameterInvokeValues.AddOrUpdate(obj, paramDict);
+                        if (!paramDict.TryGetValue(method, out var paramList))
+                        {
+                            paramDict[method] = paramList = new ParamsAndResult(new List<string>(), null, false);
+                        }
+
+                        paramList.Params.Resize(method.GetParameters().Length, "");
+                        for (var i = 0; i < method.GetParameters().Length; i++)
+                        {
+                            var parameter = method.GetParameters()[i];
+                            var str = paramList.Params[i];
+                            if (ImGui.InputText(parameter.Name, ref str, 200))
+                            {
+                                paramList.Params[i] = str;
+                            }
+                        }
+
+                        object[] converted = null;
+                        try
+                        {
+                            converted = paramList.Params.Zip(method.GetParameters(), (s, param) => Convert.ChangeType(s, param.ParameterType)).ToArray();
+                        }
+                        catch
+                        {
+                        }
+
+                        ImGui.BeginDisabled(converted == null);
+                        if (!method.GetParameters().Any())
+                        {
+                            ImGui.SameLine();
+                        }
+
+                        if (ImGui.Button("Invoke"))
+                        {
+                            try
+                            {
+                                paramList = paramList with { Result = method.Invoke(obj, converted), WasCalled = true };
+                                paramDict[method] = paramList;
+                            }
+                            catch (Exception ex)
+                            {
+                                LogError($"Invoke() -> {ex}");
+                            }
+                        }
+
+                        ImGui.EndDisabled();
+                        if (paramList.WasCalled && TreeNode("Result", paramList.Result))
+                        {
+                            Debug(paramList.Result);
+                            ImGui.TreePop();
+                        }
+                    }
+
+                    ImGui.PopID();
+                }
+                catch (Exception e)
+                {
+                    ImGui.Text($"{method.Name}: ");
+                    ImGui.SameLine();
+                    ImGui.TextColored(Settings.ErrorColor.Value.ToImguiVec4(), "<exception thrown>");
+                    LogError($"{method.Name} -> {e}");
                 }
             }
         }
