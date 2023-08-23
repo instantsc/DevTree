@@ -43,18 +43,21 @@ namespace DevTree
                    IsSimpleType(type.GetGenericArguments()[0]);
         }
 
-        private bool ColoredTreeNode(string text, SharpDX.Color color, object entity)
+        private bool ColoredTreeNode(string text, SharpDX.Color color, object entity, out bool isHovered)
         {
             ImGui.PushStyleColor(ImGuiCol.Text, color.ToImgui());
-            var result = TreeNode(text, entity);
+            var result = TreeNode(text, entity, out isHovered);
             ImGui.PopStyleColor();
             return result;
         }
 
-        private bool TreeNode(string text, object entity)
+        private bool TreeNode(string text, object entity) => TreeNode(text, entity, out _);
+
+        private bool TreeNode(string text, object entity, out bool isHovered)
         {
             var result = ImGui.TreeNode(text);
-            if (ImGui.IsItemHovered())
+            isHovered = ImGui.IsItemHovered();
+            if (isHovered)
             {
                 _lastHoveredMenuItem = entity;
             }
