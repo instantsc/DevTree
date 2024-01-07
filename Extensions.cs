@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using ExileCore.PoEMemory;
 
 namespace DevTree;
 
@@ -53,5 +54,15 @@ public static class Extensions
 
             list.AddRange(Enumerable.Repeat(defaultElement, newSize - oldSize));
         }
+    }
+
+    public static long GetAddress(this RemoteMemoryObject rmo, bool hide)
+    {
+        if (hide)
+        {
+            return 0xDEADBEEF;
+        }
+
+        return rmo.Address;
     }
 }

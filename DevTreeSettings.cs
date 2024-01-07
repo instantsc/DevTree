@@ -24,6 +24,7 @@ namespace DevTree
         public ColorNode FrameColor { get; set; } = new ColorNode(Color.Yellow);
         public ColorNode ErrorColor { get; set; } = new ColorNode(Color.Red);
 
+        public ToggleNode HideAddresses { get; set; } = new ToggleNode(false);
         public ToggleNode Enable { get; set; } = new(false);
 
         public bool ToggleWindowState;//Just save the state

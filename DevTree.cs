@@ -79,15 +79,27 @@ namespace DevTree
             return true;
         }
 
-        public override void AreaChange(AreaInstance area)
+        public override void OnPluginDestroyForHotReload()
         {
-            InitObjects();
+            ClearCollections();
+            base.OnPluginDestroyForHotReload();
+        }
+
+        private void ClearCollections()
+        {
+            _debugObjects.Clear();
             _collectionSkipValues.Clear();
             _collectionSearchValues.Clear();
             _objectSearchValues.Clear();
             _dynamicTabCache.Clear();
             _methodParameterInvokeValues.Clear();
             _debugEntities.Clear();
+        }
+
+        public override void AreaChange(AreaInstance area)
+        {
+            ClearCollections();
+            InitObjects();
         }
 
         private void InitObjects()
@@ -351,7 +363,7 @@ namespace DevTree
                 {
                     try
                     {
-                        if (TreeNode($"{el.Address:X} - {el.X}:{el.Y},{el.Width}:{el.Height}##{el.GetHashCode()}", el))
+                        if (TreeNode($"{el.GetAddress(Settings.HideAddresses):X} - {el.X}:{el.Y},{el.Width}:{el.Height}##{el.GetHashCode()}", el))
                         {
                             var keyForOffset = $"{el.Address}{el.GetHashCode()}";
 
@@ -456,8 +468,15 @@ namespace DevTree
                     {
                         try
                         {
-                            var toString = methodInfo.Invoke(obj, null);
-                            if (toString != null) ImGui.TextColored(Color.Orange.ToImguiVec4(), toString.ToString());
+                            if (methodInfo.Invoke(obj, null) is string toString)
+                            {
+                                if (Settings.HideAddresses && obj is RemoteMemoryObject rmo)
+                                {
+                                    toString = toString.Replace($"{rmo.Address:X}", $"{rmo.GetAddress(Settings.HideAddresses):X}");
+                                }
+
+                                ImGui.TextColored(Color.Orange.ToImguiVec4(), toString);
+                            }
                         }
                         catch (Exception ex)
                         {
@@ -477,7 +496,8 @@ namespace DevTree
                 //IEnumerable from start
                 if (obj is IEnumerable enumerable)
                 {
-                    if (enumerable is not ICollection collection)
+                    var collection = enumerable as ICollection ?? (enumerable as IReadOnlyCollection<object>)?.ToList();
+                    if (collection == null)
                         return;
 
                     var strId = $"{name} ##{type.FullName}";
@@ -545,7 +565,7 @@ namespace DevTree
                     if (ImGui.IsItemClicked()) ImGui.SetClipboardText(remoteMemoryObject.Address.ToString());
 
                     ImGui.SameLine();
-                    CopyableTextButton($"{remoteMemoryObject.Address:X}");
+                    CopyableTextButton($"{remoteMemoryObject.GetAddress(Settings.HideAddresses):X}", $"{remoteMemoryObject.Address:X}");
                     ImGui.EndTabItem();
 
                     var key = remoteMemoryObject switch
@@ -624,7 +644,7 @@ namespace DevTree
             {
                 ImGui.Text("Address: ");
                 ImGui.SameLine();
-                CopyableTextButton($"{asMemoryObject.Address:X}");
+                CopyableTextButton($"{asMemoryObject.GetAddress(Settings.HideAddresses):X}", $"{asMemoryObject.Address:X}");
 
                 if (asMemoryObject is Component asComponent)
                 {
@@ -741,7 +761,7 @@ namespace DevTree
                             {
                                 string name;
                                 if (propertyValue is RemoteMemoryObject rmo)
-                                    name = $"{propertyName} [{rmo.Address:X}]###{propertyName} {property.DeclaringType.FullName}";
+                                    name = $"{propertyName} [{rmo.GetAddress(Settings.HideAddresses):X}]###{propertyName} {property.DeclaringType.FullName}";
                                 else
                                     name = $"{propertyName} ###{propertyName} {type.FullName}";
                                 if (ColoredTreeNode(name, propertyValue switch
@@ -870,8 +890,15 @@ namespace DevTree
                                 {
                                     try
                                     {
-                                        var toString = methodInfo?.Invoke(item, null);
-                                        if (toString != null) colName = $"{toString}";
+                                        if (methodInfo?.Invoke(item, null) is string toString)
+                                        {
+                                            if (Settings.HideAddresses && item is RemoteMemoryObject itemRmo)
+                                            {
+                                                toString = toString.Replace($"{itemRmo.Address:X}", $"{itemRmo.GetAddress(Settings.HideAddresses):X}");
+                                            }
+
+                                            colName = toString;
+                                        }
                                     }
                                     catch (Exception ex)
                                     {
@@ -881,9 +908,9 @@ namespace DevTree
                                 }
                             }
 
-                            if (item is RemoteMemoryObject rmo && !colName.Contains($"{rmo.Address:X}"))
+                            if (item is RemoteMemoryObject rmo && !colName.Contains($"{rmo.GetAddress(Settings.HideAddresses):X}"))
                             {
-                                colName += $" [{rmo.Address:X}]";
+                                colName += $" [{rmo.GetAddress(Settings.HideAddresses):X}]";
                             }
 
                             if (ColoredTreeNode($"[{index}] {colName} ###{index},{item.GetType().Name}", item switch
@@ -1035,7 +1062,7 @@ namespace DevTree
             }
         }
 
-        private static void CopyableTextButton(string text)
+        private static void CopyableTextButton(string text, string copyText = null)
         {
             ImGui.PushStyleColor(ImGuiCol.Text, new ImGuiVector4(1, 0.647f, 0, 1));
             ImGui.PushStyleColor(ImGuiCol.Button, new ImGuiVector4(0, 0, 0, 0));
@@ -1044,7 +1071,7 @@ namespace DevTree
 
             if (ImGui.SmallButton(text))
             {
-                ImGui.SetClipboardText(text);
+                ImGui.SetClipboardText(copyText ?? text);
             }
 
             ImGui.PopStyleColor(4);
