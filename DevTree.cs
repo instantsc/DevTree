@@ -27,7 +27,8 @@ namespace DevTree
                                            BindingFlags.FlattenHierarchy;
 
         private record ParamsAndResult(List<string> Params, object Result, bool WasCalled);
-        private static readonly HashSet<string> IgnoredRMOProperties = new HashSet<string> { "M", "TheGame", "Address" };
+
+        internal HashSet<(Type DeclaringType, string Name)> IgnoredProperties = new();
 
         private static readonly IReadOnlySet<MethodInfo> ExcludedMethods = new HashSet<MethodInfo>
         {
@@ -50,6 +51,7 @@ namespace DevTree
         private MonsterRarity? _selectedRarity;
         private bool _windowState;
         private object _lastHoveredMenuItem = null;
+        private bool _showExtendedInfo = false;
         public Func<List<PluginWrapper>> Plugins;
         private Element UIHoverWithFallback => GameController.IngameState.UIHover switch { null or { Address: 0 } => GameController.IngameState.UIHoverElement, var s => s };
 
@@ -61,7 +63,7 @@ namespace DevTree
         public override bool Initialise()
         {
             Force = true;
-
+            IgnoredProperties = Settings.ExclusionSettings.GetExcludedMemberInfos();
             try
             {
                 InitObjects();
@@ -210,7 +212,7 @@ namespace DevTree
 			var fileRootAddr = mem.AddressOfProcess + mem.BaseOffsets[OffsetsName.FileRoot];
 			ImGui.Text($"FileRoot: {fileRootAddr:X}");
 
-            ImGui.InputText("Filter", ref _inputFilter, 128);
+            ImGui.InputTextWithHint("##entityFilter", "Entity filter", ref _inputFilter, 300);
 
             ImGui.PopItemWidth();
             ImGui.SameLine();
@@ -238,60 +240,18 @@ namespace DevTree
 
             if (ImGui.Button("Debug around entities"))
             {
-                var playerGridPos = GameController.Player.GridPos;
+                var playerGridPos = GameController.Player.GridPosNum;
                 _debugEntities = GameController.Entities
                     .Where(x => string.IsNullOrEmpty(_inputFilter) ||
                                 x.Path.Contains(_inputFilter) ||
                                 x.Address.ToString("x").Contains(_inputFilter, StringComparison.OrdinalIgnoreCase))
                     .Where(x => _selectedRarity == null || x.GetComponent<ObjectMagicProperties>()?.Rarity == _selectedRarity)
-                    .Where(x => x.GridPos.Distance(playerGridPos) < Settings.NearestEntitiesRange)
-                    .OrderBy(x => x.GridPos.Distance(playerGridPos))
+                    .Where(x => x.GridPosNum.Distance(playerGridPos) < Settings.NearestEntitiesRange)
+                    .OrderBy(x => x.GridPosNum.Distance(playerGridPos))
                     .ToList();
             }
 
-            ImGui.SameLine();
-            ImGui.PushItemWidth(128);
-            if (ImGui.InputText("CheckAddressIsGuiObject", ref _guiObjAddr, 128))
-            {
-                if (long.TryParse(_guiObjAddr, NumberStyles.HexNumber, CultureInfo.CurrentCulture, out var objAddr))
-                {
-                    var queue = new Queue<Element>();
-                    queue.Enqueue(GameController.Game.IngameState.UIRoot);
-                    var found = false;
-                    while (queue.Count > 0)
-                    {
-                        var element = queue.Dequeue();
-
-                        if (element.Address == objAddr)
-                        {
-                            var indexPath = new List<int>();
-                            var iterator = element;
-
-                            while (iterator != null && iterator.Address != 0)
-                            {
-                                if (iterator.Parent != null && iterator.Parent.Address != 0)
-                                    indexPath.Add(iterator.Parent.Children.ToList().FindIndex(x => x.Address == iterator.Address));
-
-                                iterator = iterator.Parent;
-                            }
-
-                            indexPath.Reverse();
-
-                            LogMessage("IS gui element!" + $"Path from root: [{string.Join(", ", indexPath)}]", 3);
-                            found = true;
-                            break;
-                        }
-
-                        foreach (var elementChild in element.Children)
-                        {
-                            queue.Enqueue(elementChild);
-                        }
-                    }
-
-                    if (!found)
-                        LogMessage("NOT a gui element!", 3);
-                }
-            }
+            ImGui.Checkbox("Extended info", ref _showExtendedInfo);
 
             foreach (var o in _debugObjects)
             {
@@ -710,12 +670,16 @@ namespace DevTree
                 .OrderBy(x => x.PropertyType.GetInterface("IEnumerable") != null)
                 .ThenBy(x => x.Name);
 
-            foreach (var property in properties)
+            foreach (var property in properties.ExceptBy(IgnoredProperties, x => (x.DeclaringType, x.Name)))
             {
                 var propertyName = property.Name;
                 try
                 {
-                    if (obj is RemoteMemoryObject && IgnoredRMOProperties.Contains(propertyName)) continue;
+                    if (_showExtendedInfo)
+                    {
+                        ImGui.Text(property.DeclaringType?.FullName ?? "");
+                        ImGui.SameLine();
+                    }
 
                     var propertyValue = property.GetValue(obj);
 
@@ -733,7 +697,7 @@ namespace DevTree
                     {
                         ImGui.Text($"{propertyName}: ");
                         ImGui.SameLine();
-                        var propertyVal = propertyName == "Address" ? ((long)propertyValue).ToString("x") : propertyValue.ToString();
+                        var propertyVal = propertyName == "Address" ? ((long)propertyValue).ToString("X") : propertyValue.ToString();
                         CopyableTextButton(propertyVal);
                     }
                     else
