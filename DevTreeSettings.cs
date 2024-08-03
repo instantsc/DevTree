@@ -34,6 +34,7 @@ public class DevSetting : ISettings
     public ColorNode ErrorColor { get; set; } = new ColorNode(Color.Red);
 
     public ToggleNode HideAddresses { get; set; } = new ToggleNode(false);
+    public ToggleNode RegisterInspector { get; set; } = new ToggleNode(true);
     public ToggleNode Enable { get; set; } = new(false);
 
     public ExclusionSettings ExclusionSettings { get; set; } = new();

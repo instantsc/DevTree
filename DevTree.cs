@@ -37,6 +37,7 @@ namespace DevTree
             typeof(object).GetMethod("Equals", BindingFlags.Public | BindingFlags.Static, new[] { typeof(object), typeof(object) }),
             typeof(object).GetMethod("ReferenceEquals", BindingFlags.Public | BindingFlags.Static, new[] { typeof(object), typeof(object) }),
         };
+
         private static readonly MethodInfo GetComponentMethod = typeof(Entity).GetMethod("GetComponent");
         private readonly Dictionary<string, MethodInfo> _genericMethodCache = new Dictionary<string, MethodInfo>();
         private readonly Dictionary<string, object> _debugObjects = new Dictionary<string, object>();
@@ -143,8 +144,22 @@ namespace DevTree
             _debugObjects[name] = o;
         }
 
+        private void InspectObject(object obj, string name)
+        {
+            if (ImGui.Begin($"Inspect {name}"))
+            {
+                Debug(obj, name: name);
+                ImGui.End();
+            }
+        }
+
         public override void Render()
         {
+            if (Settings.RegisterInspector)
+            {
+                GameController.RegisterInspector(InspectObject);
+            }
+
             if (Settings.ToggleWindowUsingHotkey)
             {
                 if (Settings.ToggleWindowKey.PressedOnce())
@@ -208,9 +223,9 @@ namespace DevTree
 
             ImGui.SameLine();
             ImGui.PushItemWidth(200);
-			var mem = GameController.Memory;
-			var fileRootAddr = mem.AddressOfProcess + mem.BaseOffsets[OffsetsName.FileRoot];
-			ImGui.Text($"FileRoot: {fileRootAddr:X}");
+            var mem = GameController.Memory;
+            var fileRootAddr = mem.AddressOfProcess + mem.BaseOffsets[OffsetsName.FileRoot];
+            ImGui.Text($"FileRoot: {fileRootAddr:X}");
 
             ImGui.InputTextWithHint("##entityFilter", "Entity filter", ref _inputFilter, 300);
 
@@ -218,13 +233,13 @@ namespace DevTree
             ImGui.SameLine();
             ImGui.PushItemWidth(128);
 
-            if (ImGui.BeginCombo("Rarity", _selectedRarity?.ToString()??"All"))
+            if (ImGui.BeginCombo("Rarity", _selectedRarity?.ToString() ?? "All"))
             {
                 foreach (var rarity in Enum.GetValues<MonsterRarity>().Cast<MonsterRarity?>().Append(null))
                 {
                     var isSelected = _selectedRarity == rarity;
 
-                    if (ImGui.Selectable(rarity?.ToString()??"All", isSelected))
+                    if (ImGui.Selectable(rarity?.ToString() ?? "All", isSelected))
                     {
                         _selectedRarity = rarity;
                     }
@@ -356,7 +371,6 @@ namespace DevTree
                                 Graphics.DrawFrame(clientRectCache, Settings.FrameColor, 1);
                             }
                         }
-
                     }
                     catch (Exception e)
                     {
@@ -372,10 +386,7 @@ namespace DevTree
             {
                 var camera = GameController.IngameState.Camera;
                 var hoverIndex = -1;
-                DebugCollection(_debugEntities, "Entities", "Entities", "Entities", true, (i, e) =>
-                {
-                    hoverIndex = i;
-                });
+                DebugCollection(_debugEntities, "Entities", "Entities", "Entities", true, (i, e) => { hoverIndex = i; });
 
                 for (var index = 0; index < _debugEntities.Count; index++)
                 {
@@ -566,6 +577,7 @@ namespace DevTree
                 {
                     _objectSearchValues.AddOrUpdate(obj, objectFilter);
                 }
+
                 ImGui.SetCursorPos(oldPos);
                 ImGui.Unindent();
             }
