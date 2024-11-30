@@ -64,7 +64,6 @@ public class ExclusionSettings
     public void Render(DevPlugin plugin)
     {
         var exclusionList = Exclusions ?? DefaultExclusions;
-        int i = 0;
 
         void TryUpdateExclusionList()
         {

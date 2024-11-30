@@ -10,8 +10,8 @@ namespace DevTree;
 
 public partial class DevPlugin
 {
-    private static readonly HashSet<Type> PrimitiveTypes = new HashSet<Type>
-    {
+    private static readonly HashSet<Type> PrimitiveTypes =
+    [
         typeof(Enum),
         typeof(string),
         typeof(decimal),
@@ -22,7 +22,7 @@ public partial class DevPlugin
         typeof(System.Numerics.Vector3),
         typeof(System.Numerics.Vector4),
         typeof(Vector2i),
-    };
+    ];
 
     public static bool IsEnumerable(Type type)
     {

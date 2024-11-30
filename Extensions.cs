@@ -40,7 +40,7 @@ public static class Extensions
 
     public static void Resize<T>(this List<T> list, int newSize, T defaultElement = default)
     {
-        int oldSize = list.Count;
+        var oldSize = list.Count;
         if (newSize < oldSize)
         {
             list.RemoveRange(newSize, oldSize - newSize);
@@ -58,11 +58,6 @@ public static class Extensions
 
     public static long GetAddress(this RemoteMemoryObject rmo, bool hide)
     {
-        if (hide)
-        {
-            return 0xDEADBEEF;
-        }
-
-        return rmo.Address;
+        return hide ? 0xDEADBEEF : rmo.Address;
     }
 }

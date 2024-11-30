@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
@@ -30,14 +29,14 @@ public partial class DevPlugin : BaseSettingsPlugin<DevSetting>
 
     private record ParamsAndResult(List<string> Params, object Result, bool WasCalled);
 
-    internal HashSet<(Type DeclaringType, string Name)> IgnoredProperties = new();
+    internal HashSet<(Type DeclaringType, string Name)> IgnoredProperties = [];
 
     private static readonly IReadOnlySet<MethodInfo> ExcludedMethods = new HashSet<MethodInfo>
     {
         typeof(object).GetMethod("Finalize"),
-        typeof(object).GetMethod("Equals", BindingFlags.Public | BindingFlags.Instance, new[] { typeof(object) }),
-        typeof(object).GetMethod("Equals", BindingFlags.Public | BindingFlags.Static, new[] { typeof(object), typeof(object) }),
-        typeof(object).GetMethod("ReferenceEquals", BindingFlags.Public | BindingFlags.Static, new[] { typeof(object), typeof(object) }),
+        typeof(object).GetMethod("Equals", BindingFlags.Public | BindingFlags.Instance, [typeof(object),]),
+        typeof(object).GetMethod("Equals", BindingFlags.Public | BindingFlags.Static, [typeof(object), typeof(object),]),
+        typeof(object).GetMethod("ReferenceEquals", BindingFlags.Public | BindingFlags.Static, [typeof(object), typeof(object),]),
     };
 
     private static readonly MethodInfo GetComponentMethod = typeof(Entity).GetMethod("GetComponent");
@@ -48,7 +47,7 @@ public partial class DevPlugin : BaseSettingsPlugin<DevSetting>
     private readonly Dictionary<string, string> _collectionSearchValues = new Dictionary<string, string>();
     private readonly ConditionalWeakTable<object, string> _objectSearchValues = new ConditionalWeakTable<object, string>();
     private readonly ConditionalWeakTable<object, Dictionary<MethodInfo, ParamsAndResult>> _methodParameterInvokeValues = new();
-    private List<Entity> _debugEntities = new List<Entity>();
+    private List<Entity> _debugEntities = [];
     private string _inputFilter = "";
     private string _guiObjAddr = "";
     private MonsterRarity? _selectedRarity;
@@ -60,7 +59,7 @@ public partial class DevPlugin : BaseSettingsPlugin<DevSetting>
 
     public override void OnLoad()
     {
-        Plugins = () => new List<PluginWrapper>();
+        Plugins = () => [];
     }
 
     public override bool Initialise()
@@ -200,7 +199,7 @@ public partial class DevPlugin : BaseSettingsPlugin<DevSetting>
             if (!string.IsNullOrWhiteSpace(clipboardText))
             {
                 if (clipboardText.StartsWith("0x"))
-                    clipboardText = clipboardText.Substring(2);
+                    clipboardText = clipboardText[2..];
                 if (long.TryParse(clipboardText, NumberStyles.HexNumber, CultureInfo.InvariantCulture,
                         out var parsedAddress) && parsedAddress != 0)
                 {
@@ -319,7 +318,7 @@ public partial class DevPlugin : BaseSettingsPlugin<DevSetting>
 
             try
             {
-                Debug((UIHoverWithFallback).AsObject<HoverItemIcon>());
+                Debug(UIHoverWithFallback.AsObject<HoverItemIcon>());
             }
             catch (Exception e)
             {
@@ -774,7 +773,7 @@ public partial class DevPlugin : BaseSettingsPlugin<DevSetting>
 
     private void DebugCollection(ICollection collection, string propertyName, string structId, string referenceId, bool treeNode, Action<int, object> hoverAction = null)
     {
-        Type type = collection.GetType();
+        var type = collection.GetType();
         if (collection.Count > 0)
         {
             ImGui.TextColored(Color.OrangeRed.ToImguiVec4(), $"[{collection.Count}]");
@@ -979,7 +978,7 @@ public partial class DevPlugin : BaseSettingsPlugin<DevSetting>
                     _methodParameterInvokeValues.AddOrUpdate(obj, paramDict);
                     if (!paramDict.TryGetValue(method, out var paramList))
                     {
-                        paramDict[method] = paramList = new ParamsAndResult(new List<string>(), null, false);
+                        paramDict[method] = paramList = new ParamsAndResult([], null, false);
                     }
 
                     paramList.Params.Resize(method.GetParameters().Length, "");
