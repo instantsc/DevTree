@@ -118,8 +118,8 @@ public partial class DevPlugin : BaseSettingsPlugin<DevSetting>
         AddObjects(GameController.IngameState.IngameUi, "IngameState.IngameUi");
         AddObjects(GameController.IngameState.Data, "IngameState.Data");
         AddObjects(GameController.IngameState.Data.ServerData, "IngameState.Data.ServerData");
-        AddObjects(GameController.IngameState.Data.ServerData.PlayerInventories[0].Inventory, "IngameState.Data.ServerData.PlayerInventories[0].Inventory");
-        AddObjects(GameController.IngameState.Data.ServerData.PlayerInventories[0].Inventory.Items, "-> Items");
+        AddObjects(GameController.IngameState.Data.ServerData.PlayerInventories.FirstOrDefault()?.Inventory, "IngameState.Data.ServerData.PlayerInventories[0].Inventory");
+        AddObjects(GameController.IngameState.Data.ServerData.PlayerInventories.FirstOrDefault()?.Inventory.Items, "-> Items");
         AddObjects(GameController.IngameState.IngameUi.InventoryPanel[InventoryIndex.PlayerInventory], "IngameState.IngameUi.InventoryPanel[InventoryIndex.PlayerInventory]");
         AddObjects(GameController.IngameState.IngameUi.ItemsOnGroundLabels, "IngameState.IngameUi.ItemsOnGroundLabels");
         var pluginWrappers = Plugins();
