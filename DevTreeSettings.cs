@@ -19,11 +19,11 @@ public class DevSetting : ISettings
 {
     public ToggleNode ToggleWindowUsingHotkey { get; set; } = new ToggleNode(false);
 
-    public HotkeyNode ToggleWindowKey { get; set; } = new HotkeyNode(Keys.NumPad9);
+    public HotkeyNodeV2 ToggleWindowKey { get; set; } = Keys.NumPad9;
 
-    public HotkeyNode DebugUIHoverItemKey { get; set; } = Keys.NumPad5;
+    public HotkeyNodeV2 DebugUIHoverItemKey { get; set; } = Keys.NumPad5;
 
-    public HotkeyNode SaveHoveredDevTreeNodeKey { get; set; } = Keys.NumPad8;
+    public HotkeyNodeV2 SaveHoveredDevTreeNodeKey { get; set; } = Keys.NumPad8;
 
     public RangeNode<int> NearestEntitiesRange { get; set; } = new(300, 1, 2000);
 

@@ -76,10 +76,10 @@ public partial class DevPlugin : BaseSettingsPlugin<DevSetting>
             LogError($"{e}");
         }
 
-        Input.RegisterKey(Settings.ToggleWindowKey);
-        Input.RegisterKey(Settings.DebugUIHoverItemKey);
-        Settings.DebugUIHoverItemKey.OnValueChanged += () => { Input.RegisterKey(Settings.DebugUIHoverItemKey); };
-        Settings.ToggleWindowKey.OnValueChanged += () => { Input.RegisterKey(Settings.ToggleWindowKey); };
+        Input.RegisterKey(Settings.ToggleWindowKey.Value);
+        Input.RegisterKey(Settings.DebugUIHoverItemKey.Value);
+        Settings.DebugUIHoverItemKey.OnValueChanged += () => { Input.RegisterKey(Settings.DebugUIHoverItemKey.Value); };
+        Settings.ToggleWindowKey.OnValueChanged += () => { Input.RegisterKey(Settings.ToggleWindowKey.Value); };
         Name = "DevTree";
         return true;
     }
