@@ -17,6 +17,11 @@ using ExileCore2.Shared.Enums;
 using ExileCore2.Shared.Helpers;
 using ImGuiNET;
 using System.Drawing;
+using System.Runtime.Loader;
+using System.Threading.Tasks;
+using ItemFilterLibrary;
+using Microsoft.CodeAnalysis.Scripting;
+using Graphics = ExileCore2.Graphics;
 using ImGuiVector4 = System.Numerics.Vector4;
 using Vector2 = System.Numerics.Vector2;
 
@@ -54,8 +59,46 @@ public partial class DevPlugin : BaseSettingsPlugin<DevSetting>
     private bool _windowState;
     private object _lastHoveredMenuItem = null;
     private bool _showExtendedInfo = false;
+    private string _customExpressionInput = "";
+    private bool _evalCustomExpressionEveryFrame = true;
+    private object _customExpressionObject;
+    private HoverItemIcon _storedUiHover;
+    private readonly ConditionalWeakTable<string, Task<CustomExpression>> _compileCache = [];
     public Func<List<PluginWrapper>> Plugins;
     private Element UIHoverWithFallback => GameController.IngameState.UIHover switch { null or { Address: 0 } => GameController.IngameState.UIHoverElement, var s => s };
+
+    private delegate object CustomExpression(GameController GameController, GameController GC, HoverItemIcon StoredUiHover, Graphics Graphics, Graphics G);
+    private static ScriptOptions ScriptOptions => ScriptOptions.Default
+        .AddReferences(
+            typeof(Vector2).Assembly,
+            typeof(GameStat).Assembly,
+            typeof(Core).Assembly,
+            typeof(ItemData).Assembly)
+        .AddReferences(typeof(Keys).Assembly)
+        .AddImports(
+            "System.Collections.Generic",
+            "System.Linq",
+            "ExileCore2",
+            "ExileCore2.Shared",
+            "ExileCore2.Shared.Enums",
+            "ExileCore2.Shared.Helpers",
+            "ExileCore2.PoEMemory.Components",
+            "ExileCore2.PoEMemory.MemoryObjects",
+            "ExileCore2.PoEMemory",
+            "ExileCore2.PoEMemory.FilesInMemory",
+            "System",
+            "System.Collections",
+            "System.Globalization",
+            "System.Reflection",
+            "System.Runtime.CompilerServices",
+            "System.Threading",
+            "System.Windows.Forms",
+            "ExileCore2.PoEMemory.Elements",
+            "ImGuiNET",
+            "System.Drawing",
+            "System.Numerics",
+            "ItemFilterLibrary"
+        );
 
     public override void OnLoad()
     {
@@ -92,6 +135,8 @@ public partial class DevPlugin : BaseSettingsPlugin<DevSetting>
 
     private void ClearCollections()
     {
+        _customExpressionObject = null;
+        _storedUiHover = null;
         _debugObjects.Clear();
         _collectionSkipValues.Clear();
         _collectionSearchValues.Clear();
@@ -179,6 +224,7 @@ public partial class DevPlugin : BaseSettingsPlugin<DevSetting>
             var hoverItemIcon = ingameStateUiHover.AsObject<HoverItemIcon>();
             if (ingameStateUiHover.Address != 0)
             {
+                _storedUiHover = hoverItemIcon;
                 AddObjects(new { Hover = ingameStateUiHover, HoverLikeItem = hoverItemIcon }, "Stored UIHover");
             }
         }
@@ -229,33 +275,37 @@ public partial class DevPlugin : BaseSettingsPlugin<DevSetting>
         var fileRootAddr = mem.AddressOfProcess + mem.BaseOffsets[OffsetsName.FileRoot];
         ImGui.Text($"FileRoot: {fileRootAddr:X}");
 
-        ImGui.InputTextWithHint("##entityFilter", "Entity filter", ref _inputFilter, 300);
-
-        ImGui.PopItemWidth();
-        ImGui.SameLine();
-        ImGui.PushItemWidth(128);
-
-        if (ImGui.BeginCombo("Rarity", _selectedRarity?.ToString() ?? "All"))
+        if (Settings.ShowOldEntityControls)
         {
-            foreach (var rarity in Enum.GetValues<MonsterRarity>().Cast<MonsterRarity?>().Append(null))
-            {
-                var isSelected = _selectedRarity == rarity;
+            ImGui.InputTextWithHint("##entityFilter", "Entity filter", ref _inputFilter, 300);
 
-                if (ImGui.Selectable(rarity?.ToString() ?? "All", isSelected))
+            ImGui.PopItemWidth();
+            ImGui.SameLine();
+            ImGui.PushItemWidth(128);
+
+            if (ImGui.BeginCombo("Rarity", _selectedRarity?.ToString() ?? "All"))
+            {
+                foreach (var rarity in Enum.GetValues<MonsterRarity>().Cast<MonsterRarity?>().Append(null))
                 {
-                    _selectedRarity = rarity;
+                    var isSelected = _selectedRarity == rarity;
+
+                    if (ImGui.Selectable(rarity?.ToString() ?? "All", isSelected))
+                    {
+                        _selectedRarity = rarity;
+                    }
+
+                    if (isSelected) ImGui.SetItemDefaultFocus();
                 }
 
-                if (isSelected) ImGui.SetItemDefaultFocus();
+                ImGui.EndCombo();
             }
 
-            ImGui.EndCombo();
+            ImGui.PopItemWidth();
         }
 
-        ImGui.PopItemWidth();
         ImGui.SameLine();
 
-        if (ImGui.Button("Debug around entities"))
+        if (ImGui.Button("Inspect world entities"))
         {
             var playerGridPos = GameController.Player.GridPos;
             _debugEntities = GameController.Entities
@@ -268,8 +318,36 @@ public partial class DevPlugin : BaseSettingsPlugin<DevSetting>
                 .ToList();
         }
 
+        ImGui.SameLine();
+
         ImGui.Checkbox("Extended info", ref _showExtendedInfo);
 
+
+        if (!string.IsNullOrEmpty(_customExpressionInput))
+        {
+            if (ImGui.Checkbox("Eval every frame", ref _evalCustomExpressionEveryFrame))
+            {
+                _customExpressionObject = null;
+            }
+
+            if (ImGui.Button("Save"))
+            {
+                Settings.CustomExpressions.Content.Add(new CustomExpressionSettings
+                    { EvaluateEveryFrame = { Value = _evalCustomExpressionEveryFrame }, Expression = { Value = _customExpressionInput } });
+                _customExpressionInput = "";
+            }
+        }
+
+        if (ImGui.InputTextMultiline("Custom expression##input", ref _customExpressionInput, 10000,
+                string.IsNullOrEmpty(_customExpressionInput)
+                    ? new Vector2(0, ImGui.GetFrameHeight())
+                    : new Vector2(ImGui.GetContentRegionAvail().X, ImGui.CalcTextSize($"^{_customExpressionInput}_").Y + ImGui.GetTextLineHeight())))
+        {
+            _customExpressionObject = null;
+        }
+
+        ImGui.BeginGroup();
+        
         foreach (var o in _debugObjects)
         {
             if (TreeNode($"{o.Key}##0", o.Value))
@@ -384,6 +462,43 @@ public partial class DevPlugin : BaseSettingsPlugin<DevSetting>
             ImGui.TreePop();
         }
 
+        if (!string.IsNullOrWhiteSpace(_customExpressionInput))
+        {
+            if (ImGui.TreeNodeEx("Custom expression", ImGuiTreeNodeFlags.DefaultOpen))
+            {
+                ImGui.Indent();
+
+                try
+                {
+                    var delegateTask = _compileCache.GetValue(_customExpressionInput,
+                        s => Task.Run(() => DelegateCompiler.CompileDelegate<CustomExpression>(s, ScriptOptions, CreateAlc())));
+                    if (delegateTask.IsCompletedSuccessfully)
+                    {
+                        Debug(_evalCustomExpressionEveryFrame 
+                            ? delegateTask.Result(GameController, GameController, _storedUiHover, Graphics, Graphics) 
+                            : _customExpressionObject ??= delegateTask.Result(GameController, GameController, _storedUiHover, Graphics, Graphics));
+                    }
+                    else if (delegateTask.IsFaulted)
+                    {
+                        using (ImGuiHelpers.UseStyleColor(ImGuiCol.Text, Settings.ErrorColor.Value.ToImguiVec4()))
+                            ImGui.TextUnformatted($"Compilation failed: {delegateTask.Exception}");
+                    }
+                    else
+                    {
+                        ImGui.Text("Loading...");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogError($"Error in custom expression handler: {ex}");
+                }
+
+                ImGui.Unindent();
+                ImGui.TreePop();
+            }
+        }
+
+
         if (_debugEntities.Count > 0)
         {
             var camera = GameController.IngameState.Camera;
@@ -399,7 +514,15 @@ public partial class DevPlugin : BaseSettingsPlugin<DevSetting>
             }
         }
 
+        ImGui.EndGroup();
         ImGui.End();
+    }
+
+    private static AssemblyLoadContext CreateAlc()
+    {
+        var assemblyLoadContext = new AssemblyLoadContext($"bbb{Guid.NewGuid()}", true);
+        assemblyLoadContext.Resolving += (context, name) => name.Name == "ReAgent" ? Assembly.GetExecutingAssembly() : null;
+        return assemblyLoadContext;
     }
 
     private static string GetClipboardText()

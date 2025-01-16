@@ -35,11 +35,21 @@ public class DevSetting : ISettings
 
     public ToggleNode HideAddresses { get; set; } = new ToggleNode(false);
     public ToggleNode RegisterInspector { get; set; } = new ToggleNode(true);
+    public ToggleNode ShowOldEntityControls { get; set; } = new ToggleNode(false);
     public ToggleNode Enable { get; set; } = new(false);
 
     public ExclusionSettings ExclusionSettings { get; set; } = new();
 
+    public ContentNode<CustomExpressionSettings> CustomExpressions { get; set; } = new ContentNode<CustomExpressionSettings> { ItemFactory = () => new CustomExpressionSettings() };
+
     public bool ToggleWindowState; //Just save the state
+}
+
+[Submenu]
+public class CustomExpressionSettings
+{
+    public TextNode Expression { get; set; } = new TextNode("");
+    public ToggleNode EvaluateEveryFrame { get; set; } = new ToggleNode(false);
 }
 
 [Submenu(CollapsedByDefault = true, EnableSelfDrawCollapsing = true, RenderMethod = nameof(Render))]
