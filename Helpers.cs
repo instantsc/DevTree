@@ -2,8 +2,8 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
-using ExileCore2.Shared.Helpers;
-using GameOffsets2.Native;
+using ExileCore.Shared.Helpers;
+using GameOffsets.Native;
 using ImGuiNET;
 
 namespace DevTree;
@@ -18,10 +18,14 @@ public partial class DevPlugin
         typeof(DateTime),
         typeof(TimeSpan),
         typeof(Guid),
+        typeof(SharpDX.Vector2),
+        typeof(SharpDX.Vector3),
+        typeof(SharpDX.Vector4),
         typeof(System.Numerics.Vector2),
         typeof(System.Numerics.Vector3),
         typeof(System.Numerics.Vector4),
         typeof(Vector2i),
+        typeof(SharpDX.ColorBGRA),
     ];
 
     public static bool IsEnumerable(Type type)

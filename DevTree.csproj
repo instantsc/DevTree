@@ -10,12 +10,12 @@
     <OutputPath Condition="'$(ExApiPluginOutputPath)' != ''">$(ExApiPluginOutputPath)$(MSBuildProjectName)</OutputPath>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="ExileCore2">
-      <HintPath>$(exapiPackage)\ExileCore2.dll</HintPath>
+    <Reference Include="ExileCore">
+      <HintPath>$(exapiPackage)\ExileCore.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="GameOffsets2">
-      <HintPath>$(exapiPackage)\GameOffsets2.dll</HintPath>
+    <Reference Include="GameOffsets">
+      <HintPath>$(exapiPackage)\GameOffsets.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="ItemFilterLibrary">
@@ -27,5 +27,7 @@
     <PackageReference Include="Microsoft.CodeAnalysis.Scripting.Common" Version="4.11.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="ImGui.NET" Version="1.90.0.1" />
+    <PackageReference Include="SharpDX" Version="4.2.0" />
+    <PackageReference Include="SharpDX.Mathematics" Version="4.2.0" />
   </ItemGroup>
 </Project>

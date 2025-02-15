@@ -4,13 +4,13 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Windows.Forms;
-using ExileCore2.Shared.Attributes;
-using ExileCore2.Shared.Interfaces;
-using ExileCore2.Shared.Nodes;
+using ExileCore.Shared.Attributes;
+using ExileCore.Shared.Interfaces;
+using ExileCore.Shared.Nodes;
 using ImGuiNET;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
-using System.Drawing;
+using SharpDX;
 using Vector4 = System.Numerics.Vector4;
 
 namespace DevTree;
@@ -57,14 +57,14 @@ public class ExclusionSettings
 {
     private static List<ExcludedMember> DefaultExclusions =>
     [
-        new ExcludedMember { ContainingType = "ExileCore2.PoEMemory.RemoteMemoryObject", Name = "M", Type = ExcludedMemberType.Property },
-        new ExcludedMember { ContainingType = "ExileCore2.PoEMemory.RemoteMemoryObject", Name = "TheGame", Type = ExcludedMemberType.Property },
-        new ExcludedMember { ContainingType = "ExileCore2.PoEMemory.RemoteMemoryObject", Name = "Address", Type = ExcludedMemberType.Property },
-        new ExcludedMember { ContainingType = "ExileCore2.PoEMemory.RemoteMemoryObject", Name = "CoreSettings", Type = ExcludedMemberType.Property },
-        new ExcludedMember { ContainingType = "ExileCore2.PoEMemory.RemoteMemoryObject", Name = "Cache", Type = ExcludedMemberType.Property },
-        new ExcludedMember { ContainingType = "ExileCore2.PoEMemory.RemoteMemoryObject", Name = "pCache", Type = ExcludedMemberType.Property },
-        new ExcludedMember { ContainingType = "ExileCore2.PoEMemory.RemoteMemoryObject", Name = "pM", Type = ExcludedMemberType.Property },
-        new ExcludedMember { ContainingType = "ExileCore2.PoEMemory.RemoteMemoryObject", Name = "pTheGame", Type = ExcludedMemberType.Property },
+        new ExcludedMember { ContainingType = "ExileCore.PoEMemory.RemoteMemoryObject", Name = "M", Type = ExcludedMemberType.Property },
+        new ExcludedMember { ContainingType = "ExileCore.PoEMemory.RemoteMemoryObject", Name = "TheGame", Type = ExcludedMemberType.Property },
+        new ExcludedMember { ContainingType = "ExileCore.PoEMemory.RemoteMemoryObject", Name = "Address", Type = ExcludedMemberType.Property },
+        new ExcludedMember { ContainingType = "ExileCore.PoEMemory.RemoteMemoryObject", Name = "CoreSettings", Type = ExcludedMemberType.Property },
+        new ExcludedMember { ContainingType = "ExileCore.PoEMemory.RemoteMemoryObject", Name = "Cache", Type = ExcludedMemberType.Property },
+        new ExcludedMember { ContainingType = "ExileCore.PoEMemory.RemoteMemoryObject", Name = "pCache", Type = ExcludedMemberType.Property },
+        new ExcludedMember { ContainingType = "ExileCore.PoEMemory.RemoteMemoryObject", Name = "pM", Type = ExcludedMemberType.Property },
+        new ExcludedMember { ContainingType = "ExileCore.PoEMemory.RemoteMemoryObject", Name = "pTheGame", Type = ExcludedMemberType.Property },
     ];
 
     public List<ExcludedMember> Exclusions { get; set; }

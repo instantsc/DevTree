@@ -7,21 +7,21 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Windows.Forms;
-using ExileCore2;
-using ExileCore2.PoEMemory;
-using ExileCore2.PoEMemory.Components;
-using ExileCore2.PoEMemory.Elements;
-using ExileCore2.PoEMemory.MemoryObjects;
-using ExileCore2.Shared;
-using ExileCore2.Shared.Enums;
-using ExileCore2.Shared.Helpers;
+using ExileCore;
+using ExileCore.PoEMemory;
+using ExileCore.PoEMemory.Components;
+using ExileCore.PoEMemory.Elements;
+using ExileCore.PoEMemory.MemoryObjects;
+using ExileCore.Shared;
+using ExileCore.Shared.Enums;
+using ExileCore.Shared.Helpers;
 using ImGuiNET;
 using System.Drawing;
 using System.Runtime.Loader;
 using System.Threading.Tasks;
 using ItemFilterLibrary;
 using Microsoft.CodeAnalysis.Scripting;
-using Graphics = ExileCore2.Graphics;
+using Graphics = ExileCore.Graphics;
 using ImGuiVector4 = System.Numerics.Vector4;
 using Vector2 = System.Numerics.Vector2;
 
@@ -78,14 +78,14 @@ public partial class DevPlugin : BaseSettingsPlugin<DevSetting>
         .AddImports(
             "System.Collections.Generic",
             "System.Linq",
-            "ExileCore2",
-            "ExileCore2.Shared",
-            "ExileCore2.Shared.Enums",
-            "ExileCore2.Shared.Helpers",
-            "ExileCore2.PoEMemory.Components",
-            "ExileCore2.PoEMemory.MemoryObjects",
-            "ExileCore2.PoEMemory",
-            "ExileCore2.PoEMemory.FilesInMemory",
+            "ExileCore",
+            "ExileCore.Shared",
+            "ExileCore.Shared.Enums",
+            "ExileCore.Shared.Helpers",
+            "ExileCore.PoEMemory.Components",
+            "ExileCore.PoEMemory.MemoryObjects",
+            "ExileCore.PoEMemory",
+            "ExileCore.PoEMemory.FilesInMemory",
             "System",
             "System.Collections",
             "System.Globalization",
@@ -93,7 +93,7 @@ public partial class DevPlugin : BaseSettingsPlugin<DevSetting>
             "System.Runtime.CompilerServices",
             "System.Threading",
             "System.Windows.Forms",
-            "ExileCore2.PoEMemory.Elements",
+            "ExileCore.PoEMemory.Elements",
             "ImGuiNET",
             "System.Drawing",
             "System.Numerics",
@@ -307,14 +307,14 @@ public partial class DevPlugin : BaseSettingsPlugin<DevSetting>
 
         if (ImGui.Button("Inspect world entities"))
         {
-            var playerGridPos = GameController.Player.GridPos;
+            var playerGridPos = GameController.Player.GridPosNum;
             _debugEntities = GameController.Entities
                 .Where(x => string.IsNullOrEmpty(_inputFilter) ||
                             x.Path.Contains(_inputFilter) ||
                             x.Address.ToString("x").Contains(_inputFilter, StringComparison.OrdinalIgnoreCase))
                 .Where(x => _selectedRarity == null || x.GetComponent<ObjectMagicProperties>()?.Rarity == _selectedRarity)
-                .Where(x => x.GridPos.Distance(playerGridPos) < Settings.NearestEntitiesRange)
-                .OrderBy(x => x.GridPos.Distance(playerGridPos))
+                .Where(x => x.GridPosNum.Distance(playerGridPos) < Settings.NearestEntitiesRange)
+                .OrderBy(x => x.GridPosNum.Distance(playerGridPos))
                 .ToList();
         }
 
@@ -508,8 +508,8 @@ public partial class DevPlugin : BaseSettingsPlugin<DevSetting>
             for (var index = 0; index < _debugEntities.Count; index++)
             {
                 var borderColor = hoverIndex == index ? Color.DarkSlateGray : Color.Black;
-                var screenPos = camera.WorldToScreen(_debugEntities[index].Pos);
-                Graphics.DrawBox(screenPos.Translate(-9, -9), screenPos.Translate(18, 18), borderColor);
+                var screenPos = camera.WorldToScreen(_debugEntities[index].PosNum);
+                Graphics.DrawBox(screenPos.Translate(-9, -9), screenPos.Translate(18, 18), borderColor.ToSharpDx());
                 Graphics.DrawText($"{index}", screenPos);
             }
         }
@@ -917,7 +917,7 @@ public partial class DevPlugin : BaseSettingsPlugin<DevSetting>
                         {
                             var clientRectCache = e.GetClientRectCache;
                             Graphics.DrawFrame(clientRectCache, Settings.FrameColor, 1);
-                            Graphics.DrawText(index.ToString(), clientRectCache.Center);
+                            Graphics.DrawText(index.ToString(), clientRectCache.Center.ToVector2Num());
                             index++;
                         }
                     }
@@ -1185,14 +1185,14 @@ public partial class DevPlugin : BaseSettingsPlugin<DevSetting>
             case Entity e:
                 if (e.GetComponent<Render>() != null)
                 {
-                    var pos = e.Pos;
-                    var renderComponentBounds = e.GetComponent<Render>().Bounds;
+                    var pos = e.PosNum;
+                    var renderComponentBounds = e.GetComponent<Render>().BoundsNum;
                     var toScreen = GameController.IngameState.Camera.WorldToScreen(pos);
 
                     result = new { Position = pos, ToScreen = toScreen };
                     Graphics.DrawFrame(toScreen,
                         toScreen + new Vector2(renderComponentBounds.X, -renderComponentBounds.Y),
-                        Color.Orange, 0, 1, 0);
+                        Color.Orange.ToSharpDx(), 0, 1, 0);
                     return false;
                 }
 
