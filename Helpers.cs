@@ -1,68 +1,64 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using ExileCore.Shared.Helpers;
-using GameOffsets.Native;
+using System.Drawing;
+using ExileCore2.Shared.Helpers;
+using GameOffsets2.Native;
 using ImGuiNET;
 
-namespace DevTree
+namespace DevTree;
+
+public partial class DevPlugin
 {
-    public partial class DevPlugin
+    private static readonly HashSet<Type> PrimitiveTypes =
+    [
+        typeof(Enum),
+        typeof(string),
+        typeof(decimal),
+        typeof(DateTime),
+        typeof(TimeSpan),
+        typeof(Guid),
+        typeof(System.Numerics.Vector2),
+        typeof(System.Numerics.Vector3),
+        typeof(System.Numerics.Vector4),
+        typeof(Vector2i),
+    ];
+
+    public static bool IsEnumerable(Type type)
     {
-        private static readonly HashSet<Type> PrimitiveTypes = new HashSet<Type>
-        {
-            typeof(Enum),
-            typeof(string),
-            typeof(decimal),
-            typeof(DateTime),
-            typeof(TimeSpan),
-            typeof(Guid),
-            typeof(SharpDX.Vector2),
-            typeof(SharpDX.Vector3),
-            typeof(SharpDX.Vector4),
-            typeof(System.Numerics.Vector2),
-            typeof(System.Numerics.Vector3),
-            typeof(System.Numerics.Vector4),
-            typeof(Vector2i),
-            typeof(SharpDX.ColorBGRA)
-        };
+        return type != typeof(string) && typeof(IEnumerable).IsAssignableFrom(type);
+    }
 
-        public static bool IsEnumerable(Type type)
+    public static bool IsSimpleType(Type type)
+    {
+        return type.IsPrimitive ||
+               PrimitiveTypes.Contains(type) ||
+               Convert.GetTypeCode(type) != TypeCode.Object ||
+               type.BaseType == typeof(Enum) ||
+               type.IsGenericType &&
+               type.GetGenericTypeDefinition() == typeof(Nullable<>) &&
+               IsSimpleType(type.GetGenericArguments()[0]);
+    }
+
+    private bool ColoredTreeNode(string text, Color color, object entity, out bool isHovered)
+    {
+        ImGui.PushStyleColor(ImGuiCol.Text, color.ToImgui());
+        var result = TreeNode(text, entity, out isHovered);
+        ImGui.PopStyleColor();
+        return result;
+    }
+
+    private bool TreeNode(string text, object entity) => TreeNode(text, entity, out _);
+
+    private bool TreeNode(string text, object entity, out bool isHovered)
+    {
+        var result = ImGui.TreeNode(text);
+        isHovered = ImGui.IsItemHovered();
+        if (isHovered)
         {
-            return type != typeof(string) && typeof(IEnumerable).IsAssignableFrom(type);
+            _lastHoveredMenuItem = entity;
         }
 
-        public static bool IsSimpleType(Type type)
-        {
-            return type.IsPrimitive ||
-                   PrimitiveTypes.Contains(type) ||
-                   Convert.GetTypeCode(type) != TypeCode.Object ||
-                   type.BaseType == typeof(Enum) ||
-                   type.IsGenericType &&
-                   type.GetGenericTypeDefinition() == typeof(Nullable<>) &&
-                   IsSimpleType(type.GetGenericArguments()[0]);
-        }
-
-        private bool ColoredTreeNode(string text, SharpDX.Color color, object entity, out bool isHovered)
-        {
-            ImGui.PushStyleColor(ImGuiCol.Text, color.ToImgui());
-            var result = TreeNode(text, entity, out isHovered);
-            ImGui.PopStyleColor();
-            return result;
-        }
-
-        private bool TreeNode(string text, object entity) => TreeNode(text, entity, out _);
-
-        private bool TreeNode(string text, object entity, out bool isHovered)
-        {
-            var result = ImGui.TreeNode(text);
-            isHovered = ImGui.IsItemHovered();
-            if (isHovered)
-            {
-                _lastHoveredMenuItem = entity;
-            }
-
-            return result;
-        }
+        return result;
     }
 }

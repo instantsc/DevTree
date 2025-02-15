@@ -4,13 +4,13 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Windows.Forms;
-using ExileCore.Shared.Attributes;
-using ExileCore.Shared.Interfaces;
-using ExileCore.Shared.Nodes;
+using ExileCore2.Shared.Attributes;
+using ExileCore2.Shared.Interfaces;
+using ExileCore2.Shared.Nodes;
 using ImGuiNET;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
-using SharpDX;
+using System.Drawing;
 using Vector4 = System.Numerics.Vector4;
 
 namespace DevTree;
@@ -19,11 +19,11 @@ public class DevSetting : ISettings
 {
     public ToggleNode ToggleWindowUsingHotkey { get; set; } = new ToggleNode(false);
 
-    public HotkeyNode ToggleWindowKey { get; set; } = new HotkeyNode(Keys.NumPad9);
+    public HotkeyNodeV2 ToggleWindowKey { get; set; } = Keys.NumPad9;
 
-    public HotkeyNode DebugUIHoverItemKey { get; set; } = Keys.NumPad5;
+    public HotkeyNodeV2 DebugUIHoverItemKey { get; set; } = Keys.NumPad5;
 
-    public HotkeyNode SaveHoveredDevTreeNodeKey { get; set; } = Keys.NumPad8;
+    public HotkeyNodeV2 SaveHoveredDevTreeNodeKey { get; set; } = Keys.NumPad8;
 
     public RangeNode<int> NearestEntitiesRange { get; set; } = new(300, 1, 2000);
 
@@ -35,11 +35,21 @@ public class DevSetting : ISettings
 
     public ToggleNode HideAddresses { get; set; } = new ToggleNode(false);
     public ToggleNode RegisterInspector { get; set; } = new ToggleNode(true);
+    public ToggleNode ShowOldEntityControls { get; set; } = new ToggleNode(false);
     public ToggleNode Enable { get; set; } = new(false);
 
     public ExclusionSettings ExclusionSettings { get; set; } = new();
 
+    public ContentNode<CustomExpressionSettings> CustomExpressions { get; set; } = new ContentNode<CustomExpressionSettings> { ItemFactory = () => new CustomExpressionSettings() };
+
     public bool ToggleWindowState; //Just save the state
+}
+
+[Submenu]
+public class CustomExpressionSettings
+{
+    public TextNode Expression { get; set; } = new TextNode("");
+    public ToggleNode EvaluateEveryFrame { get; set; } = new ToggleNode(false);
 }
 
 [Submenu(CollapsedByDefault = true, EnableSelfDrawCollapsing = true, RenderMethod = nameof(Render))]
@@ -47,14 +57,14 @@ public class ExclusionSettings
 {
     private static List<ExcludedMember> DefaultExclusions =>
     [
-        new ExcludedMember { ContainingType = "ExileCore.PoEMemory.RemoteMemoryObject", Name = "M", Type = ExcludedMemberType.Property },
-        new ExcludedMember { ContainingType = "ExileCore.PoEMemory.RemoteMemoryObject", Name = "TheGame", Type = ExcludedMemberType.Property },
-        new ExcludedMember { ContainingType = "ExileCore.PoEMemory.RemoteMemoryObject", Name = "Address", Type = ExcludedMemberType.Property },
-        new ExcludedMember { ContainingType = "ExileCore.PoEMemory.RemoteMemoryObject", Name = "CoreSettings", Type = ExcludedMemberType.Property },
-        new ExcludedMember { ContainingType = "ExileCore.PoEMemory.RemoteMemoryObject", Name = "Cache", Type = ExcludedMemberType.Property },
-        new ExcludedMember { ContainingType = "ExileCore.PoEMemory.RemoteMemoryObject", Name = "pCache", Type = ExcludedMemberType.Property },
-        new ExcludedMember { ContainingType = "ExileCore.PoEMemory.RemoteMemoryObject", Name = "pM", Type = ExcludedMemberType.Property },
-        new ExcludedMember { ContainingType = "ExileCore.PoEMemory.RemoteMemoryObject", Name = "pTheGame", Type = ExcludedMemberType.Property },
+        new ExcludedMember { ContainingType = "ExileCore2.PoEMemory.RemoteMemoryObject", Name = "M", Type = ExcludedMemberType.Property },
+        new ExcludedMember { ContainingType = "ExileCore2.PoEMemory.RemoteMemoryObject", Name = "TheGame", Type = ExcludedMemberType.Property },
+        new ExcludedMember { ContainingType = "ExileCore2.PoEMemory.RemoteMemoryObject", Name = "Address", Type = ExcludedMemberType.Property },
+        new ExcludedMember { ContainingType = "ExileCore2.PoEMemory.RemoteMemoryObject", Name = "CoreSettings", Type = ExcludedMemberType.Property },
+        new ExcludedMember { ContainingType = "ExileCore2.PoEMemory.RemoteMemoryObject", Name = "Cache", Type = ExcludedMemberType.Property },
+        new ExcludedMember { ContainingType = "ExileCore2.PoEMemory.RemoteMemoryObject", Name = "pCache", Type = ExcludedMemberType.Property },
+        new ExcludedMember { ContainingType = "ExileCore2.PoEMemory.RemoteMemoryObject", Name = "pM", Type = ExcludedMemberType.Property },
+        new ExcludedMember { ContainingType = "ExileCore2.PoEMemory.RemoteMemoryObject", Name = "pTheGame", Type = ExcludedMemberType.Property },
     ];
 
     public List<ExcludedMember> Exclusions { get; set; }
@@ -64,7 +74,6 @@ public class ExclusionSettings
     public void Render(DevPlugin plugin)
     {
         var exclusionList = Exclusions ?? DefaultExclusions;
-        int i = 0;
 
         void TryUpdateExclusionList()
         {
